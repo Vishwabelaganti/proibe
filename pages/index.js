@@ -1,6 +1,7 @@
-import Head from 'next/head'
-import LofiCircle from '../components/LofiCircle'
-import SectionsManager from '../components/SectionsManager'
+import Head from 'next/head';
+import LofiCircle from '../components/LofiCircle';   
+import Header     from '../components/Header'
+import Sidebar from '../components/Sidebar'
 
 export default function Home() {
   return (
@@ -9,15 +10,21 @@ export default function Home() {
         <title>Proibe</title>
         <meta name="description" content="Proibe Lofi Player" />
       </Head>
+      <Header />  
+      <LofiCircle />               {/* default bottom-right */}
+      {/* OR position it wherever: */}
+      {/* <LofiCircle className="absolute top-6 left-6" /> */}
+      
+      <main className="min-h-screen bg-soft-peach text-earth-700 grid grid-cols-[16rem_1fr] overflow-hidden">
+      <Sidebar />
+       {/* Placeholder for the editor pane */}
+      <div className="p-6 overflow-auto">
+       {/* When we add NoteEditor, it goes here */}
+      <p className="text-earth-700">Select a section to begin editing...</p>
+      </div>
 
-      {/* Global overlay—always top-left */}
-      <LofiCircle />
-
-      <main className="min-h-screen bg-[#F9F4EF] text-gray-800 flex flex-col items-center p-6">
-        <h1 className="text-4xl font-semibold mt-6">Proibe</h1>
-        
-      <SectionsManager />
       </main>
     </>
+    
   )
 }
