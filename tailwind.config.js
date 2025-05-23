@@ -16,6 +16,11 @@ module.exports = {
         'accent':      '#E7D3C0',
         'accent-hover':'#dcbea7',
       },
+
+      boxShadow: {
+       card: '0 4px 24px rgba(0,0,0,0.07)',
+      },
+      
       fontFamily: {
         playfair: ['"Playfair Display"', 'serif'],
         sans:     ['Inter', 'sans-serif'],

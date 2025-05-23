@@ -18,15 +18,11 @@ export function NotesProvider({ children }) {
   }, [sections]);
 
   // Add a new section of a given type, optionally under parentId
-  function addSection(type = 'heading', parentId = null) {
-    const id = nanoid();
-    setSections(s => [
-      ...s,
-      { id, type, parent: parentId, content: '', collapsed: false }
-    ]);
-    setActiveSection(id);
-  }
-
+function addSection(type, parent = null) {
+  const id = nanoid()
+  setSections(s => [...s, { id, type, parent, content: '' }])
+  return id                     // <— return it!
+}
     
   // context/NotesContext.jsx  
     function reorderSections(sourceId, targetId) {

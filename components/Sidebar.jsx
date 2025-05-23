@@ -8,18 +8,21 @@ import {
   ChevronDown,
   ChevronRight,
   Star,
+  Pin,
 } from 'lucide-react';
+import { GripVertical } from 'lucide-react';
 
 import { motion } from 'framer-motion';
 import { useNotes } from '../context/NotesContext';
 import { cn } from '../utils/cn';          // helper to join classes
 import {
   DndContext,
-  closestCenter,
+  rectIntersection,
   PointerSensor,
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
+
 
 import {
   SortableContext,
@@ -42,21 +45,46 @@ export default function Sidebar() {
     reorderSections,
   } = useNotes();
   const pinnedSections = sections.filter((s) => s.pinned);
-  const rootSections = getChildSections(null);
+  const rootSections = getChildSections(null).filter((s) => !s.pinned);
   const [editingId, setEditingId]   = React.useState(null);      // which row is in edit-mode
   const [draftLabel, setDraftLabel] = React.useState('');        // live input text
   const [openedDuringDrag, setOpenedDuringDrag] = React.useState([]);  // stores parent ids we auto-opened
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
+    function allowedChildTypes(type) {
+      if (type === 'heading')    return ['subheading','text'];
+      if (type === 'subheading') return ['text'];
+      return [];
+    }
     function handleDragEnd(event) {
     const { active, over } = event;
-    if (active?.id && over?.id && active.id !== over.id) {
-        reorderSections(active.id, over.id);
+    if (!active?.id || !over?.id) return;
+
+    const dragged = sections.find((s) => s.id === active.id);
+    const target  = sections.find((s) => s.id === over.id);
+    if (!dragged || !target) return;
+    if (
+      target.type === 'heading' &&
+      ['subheading', 'text'].includes(dragged.type)
+    ) {
+      updateSection(dragged.id, { parent: target.id });
     }
-     // close any parents we auto-opened
-    openedDuringDrag.forEach((id) => toggleCollapse(id));
+    else if (dragged.parent === target.parent) {
+      // same‐parent ⇒ just reorder
+      if (dragged.id !== target.id) {
+        reorderSections(dragged.id, target.id);
+      }
+    }
+    else {
+      // different parent but same level target ⇒ move into its parent and reorder
+      updateSection(dragged.id, { parent: target.parent });
+      reorderSections(dragged.id, target.id);
+    }
+
+    // close any parents we auto-opened
+    openedDuringDrag.forEach(toggleCollapse);
     setOpenedDuringDrag([]);
-    }
+  }
 
     function handleDragStart(event) {
     const { active } = event;
@@ -74,7 +102,7 @@ export default function Sidebar() {
         setOpenedDuringDrag((prev) => [...prev, parentId]);
     }
     }
-
+ 
 
    /* ---------- inline rename ---------- */
    function commitRename(id) {
@@ -251,152 +279,222 @@ function SortableRow({ id, children }) {
         reorderSections(added.id, activeSection);    // swap once to move below
         }
 
-  const renderSection = (section, depth = 0) => {
-    const children    = getChildSections(section.id);
-    const hasChildren = children.length > 0;
+ /* ---------- one row + its (optional) children ---------- */
+const renderSection = (section, depth = 0, inPinned = false) => {
+  // don’t render pinned items twice
+  if (!inPinned && depth === 0 && section.pinned) return null;
+// inside renderSection(...)
+const INDENT = 16;  // px per nesting level
+const indentUnit   = 16;   // how much each extra level nests
+const baseIndent   = 24;   // the left padding of an H1 row (px-6 → 24px)
+const wrapperIndent = baseIndent + depth * indentUnit;
 
-    
-    return (
-        <motion.div
-        key={section.id}
-        initial={{ opacity: 0, y: -5 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.2 }}
-        >
-        {/* row container */}
+
+  const children    = getChildSections(section.id);
+  const hasChildren = children.length > 0;
+
+  return (
+    <motion.div
+      key={section.id}
+      initial={{ opacity: 0, y: -5 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.15 }}
+    >
+      {/* ───────── ROW ───────── */}
+      <div
+      className={cn(
+        `flex w-full items-center group
+          py-2 px-4
+          ${hasChildren && !section.collapsed
+            ? 'rounded-t-md rounded-b-none mb-0'
+            : 'rounded-md mb-2'}
+          cursor-pointer bg-white shadow-sm transition-all duration-150`,
+          activeSection === section.id
+            ? 'bg-[#F9F7F5] ring-2 ring-accent/40'
+            : 'hover:bg-[#FCFAF9] text-earth-700'
+        )}
+        onClick={() => setActiveSection(section.id)}
+      >
+
+        {/* drag handle */}
+        <GripVertical
+          size={14}
+          className="text-earth-700 opacity-0 group-hover:opacity-100 mr-1 cursor-grab"
+        />
+
+        {/* collapse/expand */}
+        {hasChildren && (
+          <button
+            className="p-1 mr-1 hover:bg-earth-200 rounded"
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleCollapse(section.id);
+            }}
+          >
+            {section.collapsed ? (
+              <ChevronRight size={14} />
+            ) : (
+              <ChevronDown size={14} />
+            )}
+          </button>
+        )}
+
+        {/* type icon */}
         <div
-            style={{ paddingLeft: depth * 16 }}               /* 16 px per level */
-            className={cn(
-            'flex items-center group py-2 px-3 rounded-md mb-1 cursor-pointer border border-transparent',
-            activeSection === section.id
-                ? 'bg-earth-200 text-earth-700 ring-2 ring-earth-700/20'
-                : 'hover:ring-2 hover:ring-earth-700/10 text-earth-700'
-            )}
-            onClick={() => setActiveSection(section.id)}
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+            setEditingId(section.id);
+            setDraftLabel(section.content);
+          }}
         >
-            {/* caret + icon + label */}
-            {hasChildren && (
+          {SectionIcon(section.type)}
+        </div>
+
+        {/* label or inline edit */}
+        {editingId === section.id ? (
+          <input
+            autoFocus
+            spellCheck={false}
+            value={draftLabel}
+            onChange={(e) => setDraftLabel(e.target.value)}
+            onBlur={() => commitRename(section.id)}
+            onKeyDown={(e) => {
+             if (e.key === 'Enter') {
+               e.preventDefault();
+               e.stopPropagation();            // <- this prevents your global listener
+               commitRename(section.id);
+             }
+             if (e.key === "Escape") {
+               e.preventDefault();
+               setEditingId(null);              // cancel rename
+             }
+             
+           }}
+            className={cn(
+              "ml-3 flex-1 bg-transparent focus:outline-none",
+              depth === 0
+                ? "text-[15px] font-medium"
+                : depth === 1
+                ? "text-[14px]"
+                : "text-[13px]"
+            )}
+          />
+        ) : (
+          <span
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              setEditingId(section.id);
+              setDraftLabel(section.content);
+            }}
+            className={cn(
+              "ml-2 truncate flex-1",
+              depth === 0
+                ? "text-[15px] font-medium"
+                : depth === 1
+                ? "text-[14px]"
+                : "text-[13px]"
+            )}
+          >
+            {section.content || `New ${section.type}`}
+          </span>
+        )}
+
+        {/* toolbar (add/delete buttons) */}
+        {editingId !== section.id && (
+          <div className="ml-auto hidden group-hover:flex items-center gap-2 pointer-events-none">
+            {/* pin */}
             <button
-                className="p-1 mr-1 hover:bg-earth-200 rounded"
-                onClick={(e) => {
+              onClick={(e) => {
                 e.stopPropagation();
-                toggleCollapse(section.id);
-                }}
+                togglePin(section.id);
+              }}
+              className="p-1 rounded hover:bg-peach-50 pointer-events-auto"
             >
-                {section.collapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+              <Star
+                size={18}
+                className={section.pinned ? "text-accent" : "text-[#8A6F53]"}
+                fill={section.pinned ? "currentColor" : "none"}
+              />
             </button>
-            )}
 
-            {SectionIcon(section.type)}
-            {editingId === section.id ? (
-                <input
-                    className="ml-2 flex-1 bg-transparent border-b border-earth-700/40 focus:outline-none"
-                    value={draftLabel}
-                    autoFocus
-                    onChange={(e) => setDraftLabel(e.target.value)}
-                    onBlur={() => commitRename(section.id)}
-                    onKeyDown={(e) => {
-                    if (e.key === 'Enter') commitRename(section.id);
-                    if (e.key === 'Escape') setEditingId(null);
-                    }}
-                />
-                ) : (
-                <span
-                    className="ml-2 truncate flex-1"
-                    onDoubleClick={(e) => {
-                    e.stopPropagation();
-                    setEditingId(section.id);
-                    setDraftLabel(section.content);
-                    }}
-                >
-                    {section.content || `New ${section.type}`}
-                </span>
-                )}
-                
-
-
-            {/* inline add-child + delete  (appear on hover) */}
-            <div className="ml-auto hidden group-hover:flex items-center space-x-1">
-                 {/* pin / unpin */}
-                    <button
-                    className="p-1 hover:bg-earth-200 rounded"
-                    title={section.pinned ? 'Unpin' : 'Pin'}
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        togglePin(section.id);
-                    }}
-                    >
-                    <Star
-                        size={14}
-                        className={section.pinned ? 'text-accent' : 'text-earth-700'}
-                        fill={section.pinned ? 'currentColor' : 'none'}
-                    />
-                    </button>
-            {allowedChildTypes(section.type).includes('subheading') && (
-                <button
-                className="p-1 bg-accent hover:bg-accent-hover rounded"
+            {/* add subheading/text */}
+            {allowedChildTypes(section.type).includes("subheading") && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (section.collapsed) toggleCollapse(section.id);
+                  addSection("subheading", section.id);
+                }}
+                className="p-1 rounded bg-accent/40 hover:bg-accent/60 pointer-events-auto"
                 title="Add subheading"
-                onClick={(e) => {
-                e.stopPropagation();
-                if (section.collapsed) toggleCollapse(section.id);  
-                addSection('subheading', section.id);                
-                }}
-                >
-                <Heading2 size={12} className="text-earth-900" />
-                </button>
+              >
+                <Heading2 size={14} />
+              </button>
             )}
-            {allowedChildTypes(section.type).includes('text') && (
-                <button
-                className="p-1 bg-accent hover:bg-accent-hover rounded"
-                title="Add text"
+            {allowedChildTypes(section.type).includes("text") && (
+              <button
                 onClick={(e) => {
-                    e.stopPropagation();
-                if (section.collapsed) toggleCollapse(section.id);   
-                    addSection('text', section.id);               
+                  e.stopPropagation();
+                  if (section.collapsed) toggleCollapse(section.id);
+                  addSection("text", section.id);
                 }}
-                >
-                <AlignLeft size={12} className="text-earth-900" />
-                </button>
+                className="p-1 rounded bg-accent/40 hover:bg-accent/60 pointer-events-auto"
+                title="Add text"
+              >
+                <AlignLeft size={14} />
+              </button>
             )}
 
             {/* delete */}
             <button
-                className="p-1 hover:bg-earth-200 rounded"
-                title="Delete"
-                onClick={(e) => {
+              onClick={(e) => {
                 e.stopPropagation();
                 deleteSection(section.id);
-                }}
+              }}
+              className="p-1 rounded hover:bg-peach-50 pointer-events-auto"
+              title="Delete"
             >
-                <Trash2 size={14} className="text-earth-700" />
+              <Trash2 size={18} />
             </button>
-            </div>
-        </div>
+          </div>
+        )}
+      </div>
 
-        {/* children */}
-        {hasChildren && !section.collapsed && (
+      {/* ───────── CHILDREN ───────── */}
+      {hasChildren && !section.collapsed && (
+        <div className="relative w-full mb-2 bg-white rounded-b-md shadow-sm">
+          {/* guide only spans real content */}
+          <span className="absolute left-6 top-4 bottom-4 w-px bg-[#D6C4B3]" />
+
+          {/* inner padding & vertical gutters */}
+          <div className="pl-10 pr-4 py-4 space-y-2">
             <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
+              sensors={sensors}
+              ollisionDetection={rectIntersection}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
             >
-                <SortableContext
+              <SortableContext
                 items={children.map((c) => c.id)}
                 strategy={verticalListSortingStrategy}
-                >
+              >
                 {children.map((c) => (
-                    <SortableRow key={c.id} id={c.id}>
+                  <SortableRow key={c.id} id={c.id}>
                     {renderSection(c, depth + 1)}
-                    </SortableRow>
+                  </SortableRow>
                 ))}
-                </SortableContext>
+              </SortableContext>
             </DndContext>
-            )}
+          </div>
+        </div>
+      )}
 
-        </motion.div>
-    );
-    };
+
+    </motion.div>
+  );
+};
+
+
 // close the inline editor any time the user selects a new section
   React.useEffect(() => {
     setEditingId(null);
@@ -404,91 +502,95 @@ function SortableRow({ id, children }) {
 
   /* ---------- sidebar wrapper ---------- */
   return (
-    <div className="w-64 bg-pale-beige p-4 shadow-md overflow-y-auto sidebar-scroll">
+    <div className="w-[280px] flex-shrink-0 bg-[#F7EDE2] px-4 py-6 overflow-y-auto sidebar-scroll border-r border-[#E8DFD6]">
       {/* header row */}
+     {/* ---------- header row ---------- */}
       <div className="flex justify-between items-center mb-5">
-        <h2 className="text-lg font-semibold text-earth-700">Sections</h2>
+        <h2 className="text-[22px] font-serif font-semibold text-earth-700 mb-3">
+          Sections
+        </h2>
 
-        {/* add buttons */}
-        <div className="flex space-x-1">
-          {/* heading */}
+        <div className="flex gap-2 mt-1">
+          {/* H1 */}
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            className="p-1.5 bg-accent hover:bg-accent-hover text-earth-900 rounded-full"
+            className="w-8 h-8 rounded-md bg-accent/40 hover:bg-accent/60 inline-flex items-center justify-center shadow-sm transition duration-150"
             onClick={() => addSection('heading')}
             title="Add heading"
           >
-            <Heading1 size={16} />
+            <Heading1 size={14} />
           </motion.button>
 
-          {/* subheading */}
+          {/* H2 */}
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            className="p-1.5 bg-accent hover:bg-accent-hover text-earth-900 rounded-full"
+            className="w-8 h-8 rounded-md bg-accent/40 hover:bg-accent/60 inline-flex items-center justify-center shadow-sm transition duration-150"
             onClick={() => {
-                const parent = activeSection
-                    ? sections.find((s) => s.id === activeSection)
-                    : null;
-
-                if (parent && parent.type === 'heading') {
-                    if (parent.collapsed) toggleCollapse(parent.id);   // NEW
-                    addSection('subheading', parent.id);
-                } else {
-                    addSection('subheading');
-                }
-                }}
+              const parent = activeSection
+                ? sections.find((s) => s.id === activeSection)
+                : null;
+              if (parent?.type === 'heading') {
+                if (parent.collapsed) toggleCollapse(parent.id);
+                addSection('subheading', parent.id);
+              } else {
+                addSection('subheading');
+              }
+            }}
             title="Add subheading"
           >
-            <Heading2 size={16} />
+            <Heading2 size={14} />
           </motion.button>
 
-          {/* text */}
+          {/* Text */}
           <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            className="p-2 bg-accent hover:bg-accent-hover text-earth-900 rounded-full"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="w-8 h-8 rounded-md bg-accent/40 hover:bg-accent/60 inline-flex items-center justify-center shadow-sm transition duration-150"
             onClick={() => {
               const parent = activeSection
                 ? sections.find((s) => s.id === activeSection)
                 : null;
               if (parent && (parent.type === 'heading' || parent.type === 'subheading')) {
-                if (parent.collapsed) toggleCollapse(parent.id);     // NEW
+                if (parent.collapsed) toggleCollapse(parent.id);
                 addSection('text', parent.id);
-                } else {
+              } else {
                 addSection('text');
-                }
+              }
             }}
             title="Add text"
           >
-            <AlignLeft size={16} />
+            <AlignLeft size={14} />
           </motion.button>
         </div>
       </div>
 
+
     {/* pinned sections */}
     {pinnedSections.length > 0 && (
-    <div className="mb-4">
-        <h3 className="text-xs font-semibold text-earth-700 mb-1 tracking-wide uppercase">
-        Pinned
+    <div className="mb-6">
+        <h3 className="flex items-center text-[17px] font-serif font-medium mb-4 text-earth-700">
+          <Pin size={16} className="mr-2 text-light-brown" />
+          Pinned
         </h3>
 
         {pinnedSections.map((sec) => (
-        /* pinned items reuse SortableRow so you can reorder them, depth = 0 */
-        <SortableRow key={sec.id} id={sec.id}>
-            {renderSection(sec, 0)}
-        </SortableRow>
+          <SortableRow key={sec.id} id={sec.id}>
+            {renderSection(sec, 0, true)}   {/* ← tell it we’re in Pinned */}
+          </SortableRow>
         ))}
 
-        <hr className="mt-3 border-earth-200" />
-    </div>
+        {/* divider */}
+        <hr className="mt-6 border-t border-[#EADFD4]" />
+      </div>
     )}
+
     
       {/* list */}
         <DndContext
         sensors={sensors}
-        collisionDetection={closestCenter}
+        collisionDetection={rectIntersection}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
         >
