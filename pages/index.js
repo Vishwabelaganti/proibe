@@ -1,8 +1,7 @@
-import Head       from 'next/head'
-import LofiCircle from '../components/LofiCircle'
-import Header     from '../components/Header'
-import Sidebar    from '../components/Sidebar'
-import NoteEditor from '../components/NoteEditor'
+// pages/index.js
+import Head from 'next/head';
+import LofiCircle from '../components/LofiCircle';
+import NotesApp from '../components/NotesApp';
 
 export default function Home() {
   return (
@@ -12,13 +11,11 @@ export default function Home() {
         <meta name="description" content="Proibe Lofi Player" />
       </Head>
 
+      {/* Floating lofi-player control */}
       <LofiCircle />
-      <Header />
 
-      <div className="grid grid-cols-[280px_1fr] min-h-[calc(100vh-80px)]">
-        <Sidebar />
-        <NoteEditor />
-      </div>
+      {/* Full notes workspace (header + sidebar + editor) */}
+      <NotesApp />
     </>
-  )
+  );
 }

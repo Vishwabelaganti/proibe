@@ -31,19 +31,29 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
+function EmptyStateMessage() {
+  return (
+    <div className="text-center p-4 text-earth-700">
+      <Plus className="mx-auto mb-2 h-8 w-8" />
+      <p className="text-sm">Add your first section</p>
+    </div>
+  );
+}
+
 export default function Sidebar() {
   const {
     sections,
-    addSection,
-    deleteSection,
     activeSection,
     setActiveSection,
     toggleCollapse,
     getChildSections,
     togglePin,
     updateSection,
-    reorderSections,
   } = useNotes();
+
+  const addSection = React.useCallback(useNotes().addSection, []);
+  const deleteSection = React.useCallback(useNotes().deleteSection, []);
+  const reorderSections = React.useCallback(useNotes().reorderSections, []);
   const pinnedSections = sections.filter((s) => s.pinned);
   const rootSections = getChildSections(null).filter((s) => !s.pinned);
   const [editingId, setEditingId]   = React.useState(null);      // which row is in edit-mode
@@ -82,7 +92,7 @@ export default function Sidebar() {
     }
 
     // close any parents we auto-opened
-    openedDuringDrag.forEach(toggleCollapse);
+    Array.from(new Set(openedDuringDrag)).forEach(toggleCollapse);
     setOpenedDuringDrag([]);
   }
 
@@ -113,11 +123,7 @@ export default function Sidebar() {
 
   /* ---------- helpers ---------- */
   
-  function allowedChildTypes(type) {
-  if (type === 'heading')      return ['subheading', 'text'];
-  if (type === 'subheading')   return ['text'];
-  return [];                   // text nodes can’t have children
-}
+// Removed duplicate implementation of allowedChildTypes function
   const SectionIcon = (type) => {
     switch (type) {
       case 'heading':
@@ -241,8 +247,17 @@ function SortableRow({ id, children }) {
             }
         }
 
-        window.addEventListener('keydown', onKey);
-        return () => window.removeEventListener('keydown', onKey);
+        const debounce = (func, delay) => {
+          let timeout;
+          return (...args) => {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func(...args), delay);
+          };
+        };
+
+        const debouncedOnKey = debounce(onKey, 200);
+        window.addEventListener('keydown', debouncedOnKey);
+        return () => window.removeEventListener('keydown', debouncedOnKey);
         }, [
         sections,
         activeSection,
@@ -278,7 +293,7 @@ function SortableRow({ id, children }) {
         const added = sibs[sibs.length - 1];         // newly appended
         reorderSections(added.id, activeSection);    // swap once to move below
         }
-
+// Removed unused wrapperIndent variable
  /* ---------- one row + its (optional) children ---------- */
 const renderSection = (section, depth = 0, inPinned = false) => {
   // don’t render pinned items twice
@@ -316,10 +331,9 @@ const wrapperIndent = baseIndent + depth * indentUnit;
         onClick={() => setActiveSection(section.id)}
       >
 
-        {/* drag handle */}
         <GripVertical
           size={14}
-          className="text-earth-700 opacity-0 group-hover:opacity-100 mr-1 cursor-grab"
+          className="text-earth-700 opacity-0 group-hover:opacity-100 transition-opacity mr-1 cursor-grab"
         />
 
         {/* collapse/expand */}
@@ -351,7 +365,7 @@ const wrapperIndent = baseIndent + depth * indentUnit;
         </div>
 
         {/* label or inline edit */}
-        {editingId === section.id ? (
+        {editingId === section.id && (section.type === 'heading' || section.type === 'subheading') ? (
           <input
             autoFocus
             spellCheck={false}
@@ -361,14 +375,15 @@ const wrapperIndent = baseIndent + depth * indentUnit;
             onKeyDown={(e) => {
              if (e.key === 'Enter') {
                e.preventDefault();
-               e.stopPropagation();            // <- this prevents your global listener
+               e.stopPropagation();
                commitRename(section.id);
              }
              if (e.key === "Escape") {
-               e.preventDefault();
-               setEditingId(null);              // cancel rename
+               if (['Enter', 'Escape'].includes(e.key)) {
+                 e.stopPropagation();
+               }
+               setEditingId(null);
              }
-             
            }}
             className={cn(
               "ml-3 flex-1 bg-transparent focus:outline-none",
@@ -382,9 +397,11 @@ const wrapperIndent = baseIndent + depth * indentUnit;
         ) : (
           <span
             onDoubleClick={(e) => {
-              e.stopPropagation();
-              setEditingId(section.id);
-              setDraftLabel(section.content);
+              if (section.type === 'heading' || section.type === 'subheading') {
+                e.stopPropagation();
+                setEditingId(section.id);
+                setDraftLabel(section.content);
+              }
             }}
             className={cn(
               "ml-2 truncate flex-1",
@@ -395,7 +412,7 @@ const wrapperIndent = baseIndent + depth * indentUnit;
                 : "text-[13px]"
             )}
           >
-            {section.content || `New ${section.type}`}
+            {stripHtml(section.content) || `New ${section.type}`}
           </span>
         )}
 
@@ -461,7 +478,7 @@ const wrapperIndent = baseIndent + depth * indentUnit;
       </div>
 
       {/* ───────── CHILDREN ───────── */}
-      {hasChildren && !section.collapsed && (
+      {hasChildren && !section.collapsed && editingId !== section.id && (
         <div className="relative w-full mb-2 bg-white rounded-b-md shadow-sm">
           {/* guide only spans real content */}
           <span className="absolute left-6 top-4 bottom-4 w-px bg-[#D6C4B3]" />
@@ -470,7 +487,7 @@ const wrapperIndent = baseIndent + depth * indentUnit;
           <div className="pl-10 pr-4 py-4 space-y-2">
             <DndContext
               sensors={sensors}
-              ollisionDetection={rectIntersection}
+              collisionDetection={rectIntersection}
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
             >
@@ -488,8 +505,6 @@ const wrapperIndent = baseIndent + depth * indentUnit;
           </div>
         </div>
       )}
-
-
     </motion.div>
   );
 };
@@ -502,7 +517,7 @@ const wrapperIndent = baseIndent + depth * indentUnit;
 
   /* ---------- sidebar wrapper ---------- */
   return (
-    <div className="w-[280px] flex-shrink-0 bg-[#F7EDE2] px-4 py-6 overflow-y-auto sidebar-scroll border-r border-[#E8DFD6]">
+    <div className="sm:w-[280px] md:w-[320px] lg:w-[360px] flex-shrink-0 bg-[#F7EDE2] px-4 py-6 overflow-y-auto sidebar-scroll border-r border-[#E8DFD6]">
       {/* header row */}
      {/* ---------- header row ---------- */}
       <div className="flex justify-between items-center mb-5">
@@ -606,15 +621,18 @@ const wrapperIndent = baseIndent + depth * indentUnit;
         </SortableContext>
 
         {/* empty-state message stays outside SortableContext */}
-        {rootSections.length === 0 && (
-            <div className="text-center p-4 text-earth-700">
-            <Plus className="mx-auto mb-2 h-8 w-8" />
-            <p className="text-sm">Add your first section</p>
-            </div>
-        )}
+        {rootSections.length === 0 && <EmptyStateMessage />}
         </DndContext>
 
 
     </div>
   );
+}
+
+// Utility to strip HTML tags
+function stripHtml(html) {
+  if (!html) return '';
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  return tmp.textContent || tmp.innerText || '';
 }

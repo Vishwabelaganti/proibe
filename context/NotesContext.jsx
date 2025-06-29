@@ -1,134 +1,164 @@
 // context/NotesContext.jsx
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+} from 'react';
 import { nanoid } from 'nanoid';
 
 const NotesContext = createContext();
 
+/**
+ * NotesProvider
+ * -------------
+ * Holds a **flat array** of section objects:
+ *   {
+ *     id:        string      — unique key
+ *     type:      'heading' | 'subheading' | 'text' | … (you decide)
+ *     parent:    string | null
+ *     content:   string
+ *     collapsed: boolean
+ *     pinned:    boolean
+ *   }
+ */
 export function NotesProvider({ children }) {
-  const [sections, setSections] = useState([]);   // flat list
+  const [sections, setSections] = useState([]);
   const [activeSection, setActiveSection] = useState(null);
 
-  // Initialize with one heading
+  /* ------------------------------------------------------------------ */
+  /*  Bootstrap with a single empty heading on first mount              */
+  /* ------------------------------------------------------------------ */
   useEffect(() => {
     if (sections.length === 0) {
       const id = nanoid();
       setSections([{ id, type: 'heading', parent: null, content: '' }]);
       setActiveSection(id);
     }
-  }, [sections]);
+  }, [sections.length]);
 
-  // Add a new section of a given type, optionally under parentId
-function addSection(type, parent = null) {
-  const id = nanoid()
-  setSections(s => [...s, { id, type, parent, content: '' }])
-  return id                     // <— return it!
-}
-    
-  // context/NotesContext.jsx  
-    function reorderSections(sourceId, targetId) {
-    setSections((prev) => {
-        const source = prev.find((s) => s.id === sourceId);
-        const target = prev.find((s) => s.id === targetId);
-        if (!source || !target || source.parent !== target.parent) return prev; // different parents – ignore for now
+  /* ------------------------------------------------------------------ */
+  /*  Utilities                                                         */
+  /* ------------------------------------------------------------------ */
 
-        const siblings = prev.filter((s) => s.parent === source.parent);
-        const others   = prev.filter((s) => s.parent !== source.parent);
+  /** Add a new section, optionally nested under `parent` */
+  const addSection = useCallback((type, parent = null) => {
+    const id = nanoid();
+    setSections((prev) => [
+      ...prev,
+      { id, type, parent, content: '' },
+    ]);
+    return id; // let caller know the new ID (handy for focusing)
+  }, []);
 
-        const newOrder = [...siblings]
-        .sort((a, b) => (a.id === sourceId ? -1 : a.id === targetId ? 1 : 0)); // crude swap
+  /** Depth-first gather of a section’s entire descendant tree */
+  const collectDescendants = useCallback(
+    (rootId, pool) => {
+      const direct = pool.filter((s) => s.parent === rootId);
+      return direct.reduce(
+        (acc, child) => [...acc, child.id, ...collectDescendants(child.id, pool)],
+        []
+      );
+    },
+    []
+  );
 
-        return [...others, ...newOrder];
-    });
-    }
+  /** Remove a section *and* every descendant */
+  const deleteSection = useCallback(
+    (id) => {
+      setSections((prev) => {
+        const toPrune = new Set([id, ...collectDescendants(id, prev)]);
+        return prev.filter((s) => !toPrune.has(s.id));
+      });
+      if (activeSection === id) setActiveSection(null);
+    },
+    [activeSection, collectDescendants]
+  );
 
-  // Delete a section and all its descendants
-  function deleteSection(id) {
-    function filterOut(list) {
-      return list
-        .filter(sec => sec.id !== id)
-        .flatMap(sec =>
-          sec.parent === id
-            ? []                                       // drop children
-            : [sec]
-        );
-    }
-    setSections(s => filterOut(s));
-    if (activeSection === id) {
-      setActiveSection(null);
-    }
-  }
-
-  // Toggle collapse on a section
-  function toggleCollapse(id) {
-    setSections(s =>
-      s.map(sec =>
-        sec.id === id ? { ...sec, collapsed: !sec.collapsed } : sec
+  /** Collapse / expand toggle */
+  const toggleCollapse = useCallback((id) => {
+    setSections((prev) =>
+      prev.map((s) =>
+        s.id === id ? { ...s, collapsed: !s.collapsed } : s
       )
     );
-  }
+  }, []);
 
-  // Get children of a parent (or top-level when parentId=null)
-  function getChildSections(parentId) {
-    return sections
-      .filter(sec => sec.parent === parentId)
-      .sort((a,b) => 0); // optional: define an order
-  }
-
-  // Update content or type
-  function updateSection(id, data) {
-    setSections(s =>
-      s.map(sec => (sec.id === id ? { ...sec, ...data } : sec))
+  /** Pin / unpin toggle */
+  const togglePin = useCallback((id) => {
+    setSections((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, pinned: !s.pinned } : s))
     );
-  }
-  function reorderSections(sourceId, targetId) {
-    // only swap if the two sections share the same parent
+  }, []);
+
+  /** Grab direct children of a parent (or top-level if `parentId === null`) */
+  const getChildSections = useCallback(
+    (parentId) => sections.filter((s) => s.parent === parentId),
+    [sections]
+  );
+
+  /** In-place content or property update */
+  const updateSection = useCallback((id, data) => {
+    setSections((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, ...data } : s))
+    );
+  }, []);
+
+  /**
+   * **reorderSections**
+   * Swap positions of two *siblings* (same parent).
+   * You’re using the flat-array trick, so order is purely the
+   * order they appear in the array.
+   */
+  const reorderSections = useCallback((sourceId, targetId) => {
     setSections((prev) => {
-        const source = prev.find((s) => s.id === sourceId);
-        const target = prev.find((s) => s.id === targetId);
-        if (!source || !target || source.parent !== target.parent) return prev;
+      const source = prev.find((s) => s.id === sourceId);
+      const target = prev.find((s) => s.id === targetId);
 
-        const siblings = prev.filter((s) => s.parent === source.parent);
-        const others   = prev.filter((s) => s.parent !== source.parent);
+      // Bail if either is missing or they’re not siblings
+      if (!source || !target || source.parent !== target.parent) return prev;
 
-        const newOrder = [...siblings];
-        const srcIdx   = newOrder.findIndex((s) => s.id === sourceId);
-        const tgtIdx   = newOrder.findIndex((s) => s.id === targetId);
+      const next = [...prev];
+      const srcIdx = next.findIndex((s) => s.id === sourceId);
+      const tgtIdx = next.findIndex((s) => s.id === targetId);
 
-        // swap the two indices
-        [newOrder[srcIdx], newOrder[tgtIdx]] = [newOrder[tgtIdx], newOrder[srcIdx]];
+      // Swap the two items
+      [next[srcIdx], next[tgtIdx]] = [next[tgtIdx], next[srcIdx]];
 
-        return [...others, ...newOrder];
+      return next;
     });
-    }
-    function togglePin(id) {
-        setSections(s =>
-        s.map(sec =>
-            sec.id === id ? { ...sec, pinned: !sec.pinned } : sec
-        )
-        );
-    }
+  }, []);
+
+  /* ------------------------------------------------------------------ */
+  /*  Public context API                                                */
+  /* ------------------------------------------------------------------ */
+  const value = {
+    /* state */
+    sections,
+    activeSection,
+
+    /* CRUD */
+    addSection,
+    deleteSection,
+    updateSection,
+
+    /* structure / view helpers */
+    getChildSections,
+    reorderSections,
+    toggleCollapse,
+    togglePin,
+    setActiveSection,
+  };
+
   return (
-    <NotesContext.Provider
-      value={{
-        sections,
-        activeSection,
-        addSection,
-        deleteSection,
-        toggleCollapse,
-        getChildSections,
-        updateSection,
-        togglePin,  
-        reorderSections,
-        setActiveSection,
-      }}
-    >
-      {children}
-    </NotesContext.Provider>
+    <NotesContext.Provider value={value}>{children}</NotesContext.Provider>
   );
 }
 
+/* Hook wrapper for safety */
 export function useNotes() {
   const ctx = useContext(NotesContext);
-  if (!ctx) throw new Error('useNotes must be inside NotesProvider');
+  if (!ctx) throw new Error('useNotes must be used inside <NotesProvider>');
   return ctx;
 }
