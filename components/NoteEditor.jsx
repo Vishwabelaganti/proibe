@@ -9,7 +9,7 @@ import {
   useSensors,
 } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import SortableSection from './SortableSection'
+import SortableSection from './SortableSection.jsx'
 import GapButton from './GapButton'
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -32,14 +32,14 @@ export default function NoteEditor() {
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   )
 
-  // Track which text section is being edited (for text sections only)
-  const [editingTextId, setEditingTextId] = React.useState(null);
+  // Track which block is being edited (for all block types)
+  const [editingBlockId, setEditingBlockId] = React.useState(null);
 
-  // Clear editingTextId when activeSection changes to a non-text section
+  // Clear editingBlockId when activeSection changes to a non-leaf section
   React.useEffect(() => {
     const picked = sections.find((s) => s.id === activeSection);
-    if (picked && picked.type !== 'text') {
-      setEditingTextId(null);
+    if (picked && !['text','table','image','icon','banner'].includes(picked.type)) {
+      setEditingBlockId(null);
     }
   }, [activeSection, sections]);
 
@@ -56,12 +56,12 @@ export default function NoteEditor() {
     if (!dragged || !target) return
 
     // 1) onto heading → reparent
-    if (target.type === 'heading' && ['subheading','text'].includes(dragged.type)) {
+    if (target.type === 'heading' && ['subheading','text','table','image','icon','banner'].includes(dragged.type)) {
       updateSection(dragged.id, { parent: target.id })
       return
     }
-    // 2) onto subheading → reparent text
-    if (target.type === 'subheading' && dragged.type === 'text') {
+    // 2) onto subheading → reparent text and other blocks
+    if (target.type === 'subheading' && ['text','table','image','icon','banner'].includes(dragged.type)) {
       updateSection(dragged.id, { parent: target.id })
       return
     }
@@ -80,12 +80,19 @@ export default function NoteEditor() {
   const rootId       = picked.type === 'text' ? picked.id : activeSection
   const rootSection  = sections.find((s) => s.id === rootId)
 
+  // --- Helper: render a tree of sections ---
   function renderTree(sectionId, parentType = null) {
     const section = sections.find((s) => s.id === sectionId)
     if (!section) return null
 
-    // If it's a text section, render only itself (no children)
-    if (section.type === 'text') {
+    // If it's a leaf block type, render only itself (no children)
+    if ([
+      'text',
+      'table',
+      'image',
+      'icon',
+      'banner',
+    ].includes(section.type)) {
       return (
         <SortableSection
           key={section.id}
@@ -95,70 +102,42 @@ export default function NoteEditor() {
             // After save, go back to parent section if any, else stay
             const parentSection = sections.find(s => s.id === section.parent);
             setActiveSection(parentSection ? parentSection.id : section.id);
-            setEditingTextId(null)
+            setEditingBlockId(null)
           }}
-          isEditing={editingTextId === section.id}
-          onEdit={(id) => setEditingTextId(id)}
+          isEditing={editingBlockId === section.id}
+          onEdit={(id) => setEditingBlockId(id)}
         />
       )
     }
 
     const kids = getChildSections(section.id)
 
-    // Only headings get their own editing page
-    if (section.type === 'heading') {
-      return (
-        <SortableSection
-          key={section.id}
-          section={section}
-          onSave={(id, newContent) => {
-            updateSection(id, { content: newContent })
-            setActiveSection(section.id)
-          }}
+    // For headings and subheadings, render all block types as children with gaps between
+    // --- FIX: wrap each group of children in a SortableContext so nested drag-and-drop works ---
+    return (
+      <SortableSection
+        key={section.id}
+        section={section}
+        onSave={(id, newContent) => {
+          updateSection(id, { content: newContent })
+        }}
+      >
+        <SortableContext
+          items={kids.map((s) => s.id)}
+          strategy={verticalListSortingStrategy}
         >
-          {/* Render subheadings and text inline, never as a new page */}
-          {kids.length === 0 && (
-            <GapButton parentId={section.id} />
-          )}
+          {/* Render GapButton before each child and after last child */}
+          {kids.length === 0 && <GapButton parentId={section.id} />}
           {kids.map((child, idx) => (
             <React.Fragment key={child.id}>
               <GapButton parentId={section.id} beforeId={child.id} />
               {renderTree(child.id, section.type)}
-              {/* Last gap after last child */}
-              {idx === kids.length - 1 && (
-                <GapButton parentId={section.id} />
-              )}
+              {idx === kids.length - 1 && <GapButton parentId={section.id} />}
             </React.Fragment>
           ))}
-        </SortableSection>
-      )
-    }
-
-    // For subheadings, render inline (never as a new page)
-    if (section.type === 'subheading') {
-      return (
-        <SortableSection
-          key={section.id}
-          section={section}
-          onSave={(id, newContent) => {
-            updateSection(id, { content: newContent })
-          }}
-        >
-          {kids.length === 0 && (
-            <GapButton parentId={section.id} />
-          )}
-          {kids.map((child, idx) => (
-            <React.Fragment key={child.id}>
-              <GapButton parentId={section.id} beforeId={child.id} />
-              {renderTree(child.id, section.type)}
-              {idx === kids.length - 1 && (
-                <GapButton parentId={section.id} />
-              )}
-            </React.Fragment>
-          ))}
-        </SortableSection>
-      )
-    }
+        </SortableContext>
+      </SortableSection>
+    )
   }
 
   function collisionDetectionStrategy(args) {
@@ -242,8 +221,9 @@ export default function NoteEditor() {
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
           >
+            {/* Only wrap the root's children in SortableContext, not all sections */}
             <SortableContext
-              items={sections.map((s) => s.id)}
+              items={getChildSections(rootSection.id).map((s) => s.id)}
               strategy={verticalListSortingStrategy}
             >
               {renderTree(rootSection.id)}

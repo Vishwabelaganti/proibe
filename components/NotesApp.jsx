@@ -1,26 +1,18 @@
 // components/NotesApp.jsx
-import React from 'react';
+import React, { useState } from 'react';
 import Sidebar from './Sidebar';
 import NoteEditor from './NoteEditor';
 import { Book } from 'lucide-react';
+import Header from './Header'; // Import the custom Header
 
 export default function NotesApp() {
+  // Add state for header background image
+  const [headerBg, setHeaderBg] = useState(null); // URL or base64 string
+
   return (
     <div className="flex flex-col h-screen">
       {/* ── Top bar ─────────────────────────────────────────────── */}
-      <header className="bg-earth-200 px-4 py-3 shadow-sm">
-        <div className="flex items-center justify-between max-w-7xl mx-auto">
-          <div className="flex items-center space-x-2">
-            <Book className="h-7 w-7 text-earth-700" />
-            <h1 className="text-xl font-playfair font-bold text-earth-800">
-              Proibe&nbsp;Notes
-            </h1>
-          </div>
-          <span className="text-xs text-earth-700">
-            Beautiful note-taking made simple
-          </span>
-        </div>
-      </header>
+      <Header headerBg={headerBg} setHeaderBg={setHeaderBg} />
 
       {/* ── Workspace ───────────────────────────────────────────── */}
       <main className="flex flex-1 overflow-hidden">

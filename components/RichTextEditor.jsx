@@ -1,429 +1,192 @@
 // components/RichTextEditor.jsx
-import React, { useEffect, useRef, useState } from 'react';
-import { useEditor, EditorContent }           from '@tiptap/react';
-import StarterKit                             from '@tiptap/starter-kit';
-import Underline                              from '@tiptap/extension-underline';
-import TextStyle                              from '@tiptap/extension-text-style';
-import Color                                  from '@tiptap/extension-color';
-import TextAlign                              from '@tiptap/extension-text-align';
+import React, { useRef, useEffect, useState } from 'react';
 import {
-  Bold, Italic, Underline as UnderlineIcon,
-  AlignLeft, AlignCenter, AlignRight,
-  List, ListOrdered, Undo, Redo,
-  Palette, Type as FontIcon,
+  Bold,
+  Italic,
+  Underline,
+  List,
+  ListOrdered,
+  Quote,
+  Code,
+  CheckSquare,
+  Type,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
 } from 'lucide-react';
-import { cn }                                 from '../utils/cn';
-import { Placeholder } from '@tiptap/extension-placeholder';
-import FontFamily from '@tiptap/extension-font-family';
 
-/* ─── tiny button helper ───────────────────────────────── */
-const ToolBtn = ({ active, onClick, children, title }) => (
-  <button
-    title={title}
-    onMouseDown={(e) => e.preventDefault()}
-    onClick={onClick}
-    className={cn(
-      'h-6 w-6 grid place-content-center rounded text-[10px]',
-      'hover:bg-light-brown/20',
-      active && 'bg-light-brown/30'
-    )}
-  >
-    {children}
-  </button>
-);
-const Divider = () => <div className="h-6 w-px bg-light-brown/30 mx-1" />;
+const FONT_SIZES = [
+  { label: 'Small', value: '12px' },
+  { label: 'Normal', value: '16px' },
+  { label: 'Large', value: '20px' },
+  { label: 'X-Large', value: '28px' },
+];
+const FONT_FAMILIES = [
+  { label: 'Inter', value: 'Inter, sans-serif' },
+  { label: 'Serif', value: 'Georgia, serif' },
+  { label: 'Mono', value: 'SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace' },
+  { label: 'Playfair', value: 'Playfair Display, serif' },
+];
+const COLORS = [
+  '#2d1c0f', '#a67c52', '#bfae9b', '#4A3B2F', '#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#6B7280', '#000000', '#ffffff'
+];
 
 /* ─── main editor component ───────────────────────────────── */
-export default function RichTextEditor({ content, onChange, type }) {
-  /* colour + size options */
-  const palette = ['#000000', '#DEB887', '#B5C18E', '#8B4513', '#A0522D'];
-  const sizes   = [
-    { label: '10', val: '10px' },
-    { label: '12', val: '12px' }, // default
-    { label: '14', val: '14px' },
-    { label: '18', val: '18px' },
-    { label: '24', val: '24px' },
-    { label: '32', val: '32px' },
-  ];
+export default function RichTextEditor({ content, onChange, type = 'text' }) {
+  const editorRef = useRef(null);
+  const [isToolbarVisible, setIsToolbarVisible] = useState(false);
+  const [selectedText, setSelectedText] = useState('');
+  const [fontFamily, setFontFamily] = useState('');
+  const [fontSize, setFontSize] = useState('16px');
+  const [color, setColor] = useState('#000000');
 
-  const [activeColor, setActiveColor] = useState(palette[0]);
-  const [activeSize,  setActiveSize]  = useState(sizes[1]);
-  const [paletteOpen, setPaletteOpen] = useState(false);
-  const [sizeOpen,    setSizeOpen]    = useState(false);
-
-  const paletteRef = useRef(null);
-  const sizeRef    = useRef(null);
-
-  // Font families for dropdown (keep a few good ones)
-  const fontFamilies = [
-    { label: 'Default', val: '' },
-    { label: 'Serif', val: 'serif' },
-    { label: 'Sans', val: 'Inter, sans-serif' },
-    { label: 'Playfair', val: '"Playfair Display", serif' },
-    { label: 'Monospace', val: 'monospace' },
-    { label: 'Georgia', val: 'Georgia, serif' },
-    { label: 'Courier', val: '"Courier New", monospace' },
-  ];
-  const [activeFont, setActiveFont] = useState(fontFamilies[0]);
-  const [customFont, setCustomFont] = useState('');
-  const [customFontUrl, setCustomFontUrl] = useState('');
-  const [fontFamilyOpen, setFontFamilyOpen] = useState(false);
-  const [fontSizeOpen, setFontSizeOpen] = useState(false);
-  const [showImport, setShowImport] = useState(false);
-
-  /* ─ TipTap setup ────────────────────────────────────────────── */
-  const editor = useEditor({
-    extensions: [
-      StarterKit,
-      Underline,
-      TextStyle.extend({
-        addAttributes() {
-          return {
-            ...this.parent?.(),
-            fontSize: {
-              default: '16px',
-              parseHTML: element => element.style.fontSize || null,
-              renderHTML: attributes => {
-                if (!attributes.fontSize) return {};
-                return { style: `font-size: ${attributes.fontSize}` };
-              },
-            },
-            fontFamily: {
-              default: '',
-              parseHTML: element => element.style.fontFamily || null,
-              renderHTML: attributes => {
-                if (!attributes.fontFamily) return {};
-                return { style: `font-family: ${attributes.fontFamily}` };
-              },
-            },
-          };
-        },
-      }),
-      FontFamily.configure({
-        types: ['textStyle'],
-      }),
-      Color.configure({ types: ['textStyle', 'heading', 'paragraph'] }),
-      TextAlign.configure({ types: ['heading', 'paragraph'] }),
-      Placeholder.configure({
-        placeholder: type === 'text'
-          ? 'Type your note here…'
-          : 'Click here to edit the title…',
-        showOnlyWhenEditable: true,
-        showOnlyCurrent: false,
-      }),
-    ],
-    content,
-    onUpdate: ({ editor }) => onChange(editor.getHTML()),
-  });
-
-  /* close dropdowns when clicking outside */
   useEffect(() => {
-    const handler = (e) => {
-      if (paletteRef.current && !paletteRef.current.contains(e.target))
-        setPaletteOpen(false);
-      if (sizeRef.current && !sizeRef.current.contains(e.target))
-        setSizeOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
+    if (editorRef.current && content !== editorRef.current.innerHTML) {
+      editorRef.current.innerHTML = content || '';
+    }
+  }, [content]);
 
-  if (!editor) return null;
-
-  /* ─ helpers ───────────────────────────────────────────────── */
-  const applySize = (px) =>
-    editor.chain().focus().setMark('textStyle', { fontSize: px }).run();
-
-  /** Apply a colour to the full heading block if inside one */
-  const applyColorSmart = (hex) => {
-    const { commands, state } = editor;
-    const { $from } = state.selection;
-    if ($from.parent.type.name === 'heading') {
-      const start = $from.start($from.depth);
-      const end   = $from.end($from.depth);
-      commands.setColor(hex, { from: start, to: end });
-    } else {
-      commands.setColor(hex);
+  const handleInput = () => {
+    if (editorRef.current) {
+      onChange(editorRef.current.innerHTML);
     }
   };
 
-  const reapplyMarks = () => {
-    applyColorSmart(activeColor);
-    applySize(activeSize.val);
+  const handleSelection = () => {
+    const selection = window.getSelection();
+    const text = selection.toString();
+    setSelectedText(text);
+    setIsToolbarVisible(true);
   };
 
-  // Only allow font size and font family for text sections
-  const showFontSize = type === 'text';
-  const showFontFamily = type === 'text';
+  const execCommand = (command, value = null) => {
+    document.execCommand(command, false, value);
+    editorRef.current?.focus();
+    handleInput();
+  };
 
-  // Handle custom font import (from fontgen.net or Google Fonts)
-  function handleCustomFontImport(e) {
-    e.preventDefault();
-    if (!customFont.trim() || !customFontUrl.trim()) return;
-    // Add a <link> or <style> to the head for the custom font
-    if (!document.getElementById(`custom-font-link-${customFont}`)) {
-      // If it's a CSS @import, inject a <style>
-      if (customFontUrl.includes('@import')) {
-        const style = document.createElement('style');
-        style.id = `custom-font-link-${customFont}`;
-        style.innerHTML = customFontUrl;
-        document.head.appendChild(style);
-      } else {
-        // Otherwise, treat as a <link> (e.g. Google Fonts or direct CSS)
-        const link = document.createElement('link');
-        link.id = `custom-font-link-${customFont}`;
-        link.rel = 'stylesheet';
-        link.href = customFontUrl;
-        document.head.appendChild(link);
+  const insertHTML = (html) => {
+    const selection = window.getSelection();
+    if (selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      range.deleteContents();
+      const div = document.createElement('div');
+      div.innerHTML = html;
+      const fragment = document.createDocumentFragment();
+      while (div.firstChild) {
+        fragment.appendChild(div.firstChild);
       }
+      range.insertNode(fragment);
+      selection.removeAllRanges();
     }
-    setActiveFont({ label: customFont, val: `'${customFont}', sans-serif` });
-    editor.chain().focus().setMark('textStyle', { fontFamily: `'${customFont}', sans-serif` }).run();
-    setCustomFont('');
-    setCustomFontUrl('');
-    setShowImport(false);
-    setFontFamilyOpen(false);
-  }
+    handleInput();
+  };
 
-  /* ─ UI ──────────────────────────────────────────────────────── */
-  return (
-    <div className="w-full">
-      {/* toolbar */}
-      <div className="mb-4 p-2 bg-pale-beige rounded-lg flex flex-wrap gap-1 border border-accent shadow-card">
-        {/* bold / italic / underline */}
-        <ToolBtn
-          title="Bold"
-          active={editor.isActive('bold')}
-          onClick={() => {
-            editor.chain().focus().toggleBold().run();
-            reapplyMarks();
-          }}
-        >
-          <Bold size={14}/>
-        </ToolBtn>
-        <ToolBtn
-          title="Italic"
-          active={editor.isActive('italic')}
-          onClick={() => {
-            editor.chain().focus().toggleItalic().run();
-            reapplyMarks();
-          }}
-        >
-          <Italic size={14}/>
-        </ToolBtn>
-        <ToolBtn
-          title="Underline"
-          active={editor.isActive('underline')}
-          onClick={() => {
-            editor.chain().focus().toggleUnderline().run();
-            reapplyMarks();
-          }}
-        >
-          <UnderlineIcon size={14}/>
-        </ToolBtn>
-
-        {/* font family dropdown (after bold/italic/underline, only for text sections) */}
-        {showFontFamily && (
-          <div className="relative">
-            <ToolBtn title="Font style" onClick={() => setFontFamilyOpen(o => !o)}>
-              <span className="font-bold text-xs">F</span>
-            </ToolBtn>
-            {fontFamilyOpen && (
-              <div ref={paletteRef} className="absolute left-0 bottom-full mb-1 bg-white border border-accent rounded-lg shadow-lg p-2 flex flex-col gap-1 z-50 min-w-[180px] max-w-[220px]">
-                {fontFamilies.map(f => (
-                  <button
-                    key={f.val}
-                    onMouseDown={e=>e.preventDefault()}
-                    onClick={() => {
-                      setActiveFont(f);
-                      editor.chain().focus().setMark('textStyle', { fontFamily: f.val }).run();
-                      setFontFamilyOpen(false);
-                    }}
-                    className={cn(
-                      'px-2 py-0.5 text-sm rounded text-left hover:bg-accent/30',
-                      f.val === activeFont.val && 'bg-accent/60 font-semibold'
-                    )}
-                    style={{ fontFamily: f.val || undefined, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis' }}
-                  >
-                    {f.label}
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  className="mt-1 px-2 py-0.5 rounded bg-accent/60 hover:bg-accent text-xs border border-accent"
-                  onClick={() => setShowImport((v) => !v)}
-                >
-                  Import font style
-                </button>
-                {showImport && (
-                  <form
-                    onSubmit={handleCustomFontImport}
-                    className="flex flex-col gap-1 mt-2 border-t border-accent pt-2"
-                    title="Import font from fontgen.net or Google Fonts"
-                  >
-                    <input
-                      type="text"
-                      value={customFont}
-                      onChange={e => setCustomFont(e.target.value)}
-                      placeholder="Font name (e.g. Roboto)"
-                      className="border border-accent rounded px-1 py-0.5 text-xs flex-1 bg-pale-beige"
-                    />
-                    <input
-                      type="text"
-                      value={customFontUrl}
-                      onChange={e => setCustomFontUrl(e.target.value)}
-                      placeholder="Font CSS URL or @import"
-                      className="border border-accent rounded px-1 py-0.5 text-xs flex-1 bg-pale-beige"
-                    />
-                    <button
-                      type="submit"
-                      className="mt-1 px-2 py-0.5 rounded bg-accent/60 hover:bg-accent text-xs border border-accent"
-                    >
-                      Add Font
-                    </button>
-                    <span className="text-[10px] text-earth-700 mt-1">
-                      Paste the CSS URL or <code>@import</code> from <a href="https://www.fontgen.net" target="_blank" rel="noopener noreferrer" className="underline">fontgen.net</a>
-                    </span>
-                  </form>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* font-size dropdown (only for text sections, as a dropdown) */}
-        {showFontSize && (
-          <div className="relative">
-            <ToolBtn title="Font size" onClick={() => setFontSizeOpen(o => !o)}>
-              <FontIcon size={14}/>
-            </ToolBtn>
-            {fontSizeOpen && (
-              <div ref={sizeRef} className="absolute left-0 bottom-full mb-1 bg-white border border-accent rounded-lg shadow-lg p-2 flex flex-col gap-1 z-50 min-w-[80px] max-w-[120px]">
-                {sizes.map(s => (
-                  <button
-                    key={s.val}
-                    onMouseDown={e=>e.preventDefault()}
-                    onClick={() => {
-                      setActiveSize(s);
-                      applySize(s.val);
-                      setFontSizeOpen(false);
-                    }}
-                    className={cn(
-                      'px-2 py-0.5 text-sm rounded text-left hover:bg-accent/30',
-                      s.val === activeSize.val && 'bg-accent/60 font-semibold'
-                    )}
-                  >
-                    {s.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        <Divider />
-
-        {/* align */}
-        {[
-          ['left',   <AlignLeft   size={14} key="l"/ >],
-          ['center', <AlignCenter size={14} key="c"/ >],
-          ['right',  <AlignRight  size={14} key="r"/ >],
-        ].map(([pos, icon]) => (
-          <ToolBtn
-            key={pos}
-            title={`Align ${pos}`}
-            active={editor.isActive({ textAlign: pos })}
-            onClick={() => editor.chain().focus().setTextAlign(pos).run()}
-          >
-            {icon}
-          </ToolBtn>
-        ))}
-
-        <Divider />
-
-        {/* lists */}
-        <ToolBtn
-          title="Bullet list"
-          active={editor.isActive('bulletList')}
-          onClick={() => editor.chain().focus().toggleBulletList().run()}
-        >
-          <List size={14}/>
-        </ToolBtn>
-        <ToolBtn
-          title="Numbered list"
-          active={editor.isActive('orderedList')}
-          onClick={() => editor.chain().focus().toggleOrderedList().run()}
-        >
-          <ListOrdered size={14}/>
-        </ToolBtn>
-
-        <Divider />
-
-        {/* palette */}
-        <div ref={paletteRef} className="relative">
-          <ToolBtn title="Text colour" onClick={() => setPaletteOpen(o => !o)}>
-            <Palette size={14}/>
-          </ToolBtn>
-          {paletteOpen && (
-            <div className="absolute bottom-full left-0 mb-1 bg-white shadow-lg rounded
-                            p-2 flex gap-1 z-50 items-center">
-              {/* Preset palette */}
-              {palette.map(c => (
-                <button
-                  key={c}
-                  onMouseDown={e=>e.preventDefault()}
-                  onClick={() => {
-                    setActiveColor(c);
-                    applyColorSmart(c);
-                    // Do NOT close palette here
-                  }}
-                  style={{ backgroundColor: c }}
-                  className={cn(
-                    'w-5 h-5 rounded-full border border-[#ddd]',
-                    c === activeColor && 'outline outline-2 outline-light-brown'
-                  )}
-                />
-              ))}
-              {/* Custom color picker */}
-              <input
-                type="color"
-                value={activeColor}
-                onChange={e => {
-                  setActiveColor(e.target.value);
-                  applyColorSmart(e.target.value);
-                  // Do NOT close palette here
-                }}
-                className="w-6 h-6 rounded-full border border-[#ddd] cursor-pointer"
-                style={{ padding: 0, background: 'none' }}
-                title="Pick a custom color"
-              />
-              {/* Done/Close button */}
-              <button
-                onClick={() => setPaletteOpen(false)}
-                className="ml-2 px-2 py-1 rounded bg-accent/40 hover:bg-accent/60 text-earth-700 text-xs"
-                tabIndex={-1}
-              >
-                Done
-              </button>
-            </div>
-          )}
-        </div>
-
-        <Divider />
-
-        {/* undo/redo */}
-        <ToolBtn title="Undo" onClick={() => editor.chain().focus().undo().run()}>
-          <Undo size={14}/>
-        </ToolBtn>
-        <ToolBtn title="Redo" onClick={() => editor.chain().focus().redo().run()}>
-          <Redo size={14}/>
-        </ToolBtn>
+  const insertCheckbox = () => {
+    const checkboxHTML = `
+      <div class="flex items-center gap-2 my-2">
+        <input type="checkbox" class="rounded border-earth-300 text-accent focus:ring-accent" />
+        <span contenteditable="true" class="flex-1">New task</span>
       </div>
+    `;
+    insertHTML(checkboxHTML);
+  };
 
-      {/* editable area */}
-      <EditorContent
-        editor={editor}
-        className="tiptap prose max-w-none w-full focus:outline-none"
+  const insertCodeBlock = () => {
+    const codeHTML = `
+      <pre class="bg-earth-100 rounded-lg p-4 my-4 overflow-x-auto">
+        <code contenteditable="true" class="text-earth-800 font-mono text-sm">// Your code here</code>
+      </pre>
+    `;
+    insertHTML(codeHTML);
+  };
+
+  const insertQuote = () => {
+    const quoteHTML = `
+      <blockquote class="border-l-4 border-accent pl-4 my-4 italic text-earth-600">
+        <p contenteditable="true">Your quote here...</p>
+      </blockquote>
+    `;
+    insertHTML(quoteHTML);
+  };
+
+  const ToolbarButton = ({ onClick, icon: Icon, title, isActive = false }) => (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`p-2 rounded hover:bg-earth-100 transition-colors ${
+        isActive ? 'bg-earth-200 text-accent' : 'text-earth-600'
+      }`}
+      title={title}
+    >
+      <Icon size={16} />
+    </button>
+  );
+
+  return (
+    <div className="relative">
+      {/* Full Toolbar */}
+      <div className="flex flex-wrap gap-1 mb-2 items-center bg-white border border-earth-200 rounded-lg p-2 shadow-sm sticky top-0 z-10 w-full max-w-full overflow-x-auto">
+        <ToolbarButton onClick={() => execCommand('bold')} icon={Bold} title="Bold" isActive={document.queryCommandState('bold')} />
+        <ToolbarButton onClick={() => execCommand('italic')} icon={Italic} title="Italic" isActive={document.queryCommandState('italic')} />
+        <ToolbarButton onClick={() => execCommand('underline')} icon={Underline} title="Underline" isActive={document.queryCommandState('underline')} />
+        <ToolbarButton onClick={() => execCommand('insertUnorderedList')} icon={List} title="Bullet List" />
+        <ToolbarButton onClick={() => execCommand('insertOrderedList')} icon={ListOrdered} title="Numbered List" />
+        <ToolbarButton onClick={insertCheckbox} icon={CheckSquare} title="Todo" />
+        <ToolbarButton onClick={insertQuote} icon={Quote} title="Quote" />
+        <ToolbarButton onClick={insertCodeBlock} icon={Code} title="Code Block" />
+        <div className="w-px h-6 bg-earth-200 mx-2" />
+        {/* Font family */}
+        <select
+          value={fontFamily}
+          onChange={e => { setFontFamily(e.target.value); execCommand('fontName', e.target.value); }}
+          className="rounded px-2 py-1 border border-earth-200 text-xs focus:outline-accent"
+          title="Font family"
+        >
+          {FONT_FAMILIES.map(f => (
+            <option key={f.value} value={f.value} style={{ fontFamily: f.value }}>{f.label}</option>
+          ))}
+        </select>
+        {/* Font size */}
+        <select
+          value={fontSize}
+          onChange={e => { setFontSize(e.target.value); execCommand('fontSize', FONT_SIZES.findIndex(s => s.value === e.target.value) + 1); }}
+          className="rounded px-2 py-1 border border-earth-200 text-xs focus:outline-accent"
+          title="Font size"
+        >
+          {FONT_SIZES.map((s, i) => (
+            <option key={s.value} value={s.value}>{s.label}</option>
+          ))}
+        </select>
+        {/* Color */}
+        <input
+          type="color"
+          value={color}
+          onChange={e => { setColor(e.target.value); execCommand('foreColor', e.target.value); }}
+          className="w-6 h-6 rounded border border-earth-200 ml-2"
+          title="Text color"
+        />
+        <button
+          type="button"
+          className="ml-1 px-2 py-1 rounded bg-earth-100 hover:bg-earth-200 text-xs text-earth-700"
+          onClick={() => execCommand('removeFormat')}
+          title="Clear formatting"
+        >
+          Clear
+        </button>
+      </div>
+      {/* Main Editor */}
+      <div
+        ref={editorRef}
+        contentEditable
+        suppressContentEditableWarning
+        onInput={handleInput}
+        onMouseUp={handleSelection}
+        onKeyUp={handleSelection}
+        onBlur={() => setIsToolbarVisible(false)}
+        className={`prose prose-earth max-w-full w-full min-h-[120px] p-4 rounded-lg border border-earth-200 focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent overflow-x-auto`}
+        style={{ lineHeight: '1.7', fontSize: fontSize, fontFamily: fontFamily, color: color }}
+        placeholder="Start typing..."
       />
     </div>
   );

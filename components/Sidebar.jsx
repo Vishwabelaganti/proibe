@@ -9,27 +9,18 @@ import {
   ChevronRight,
   Star,
   Pin,
+  Table,
+  Image,
+  Smile,
+  Flag,
 } from 'lucide-react';
 import { GripVertical } from 'lucide-react';
+import { useSensors, useSensor, PointerSensor, DndContext, rectIntersection } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 
 import { motion } from 'framer-motion';
 import { useNotes } from '../context/NotesContext';
 import { cn } from '../utils/cn';          // helper to join classes
-import {
-  DndContext,
-  rectIntersection,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from '@dnd-kit/core';
-
-
-import {
-  SortableContext,
-  useSortable,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 
 function EmptyStateMessage() {
   return (
@@ -56,14 +47,11 @@ export default function Sidebar() {
   const reorderSections = React.useCallback(useNotes().reorderSections, []);
   const pinnedSections = sections.filter((s) => s.pinned);
   const rootSections = getChildSections(null).filter((s) => !s.pinned);
-  const [editingId, setEditingId]   = React.useState(null);      // which row is in edit-mode
-  const [draftLabel, setDraftLabel] = React.useState('');        // live input text
-  const [openedDuringDrag, setOpenedDuringDrag] = React.useState([]);  // stores parent ids we auto-opened
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+  const [editingId, setEditingId]   = React.useState(null);  const [draftLabel, setDraftLabel] = React.useState('');  const [openedDuringDrag, setOpenedDuringDrag] = React.useState([]);  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
     function allowedChildTypes(type) {
-      if (type === 'heading')    return ['subheading','text'];
-      if (type === 'subheading') return ['text'];
+      if (type === 'heading')    return ['subheading','text','table','image','icon','banner'];
+      if (type === 'subheading') return ['text','table','image','icon','banner'];
       return [];
     }
     function handleDragEnd(event) {
@@ -132,6 +120,14 @@ export default function Sidebar() {
         return <Heading2 className="h-4 w-4 text-earth-700" />;
       case 'text':
         return <AlignLeft className="h-4 w-4 text-earth-700" />;
+      case 'table':
+        return <Table className="h-4 w-4 text-earth-700" />;
+      case 'image':
+        return <Image className="h-4 w-4 text-earth-700" />;
+      case 'icon':
+        return <Smile className="h-4 w-4 text-earth-700" />;
+      case 'banner':
+        return <Flag className="h-4 w-4 text-earth-700" />;
       default:
         return null;
     }
@@ -147,7 +143,7 @@ function SortableRow({ id, children }) {
   } = useSortable({ id });
 
   const style = {
-    transform: CSS.Translate.toString(transform),
+    transform: (transform && CSS.Translate && typeof CSS.Translate.toString === 'function') ? CSS.Translate.toString(transform) : undefined,
     transition,
     opacity: isDragging ? 0.6 : 1, 
   };
@@ -412,7 +408,7 @@ const wrapperIndent = baseIndent + depth * indentUnit;
                 : "text-[13px]"
             )}
           >
-            {stripHtml(section.content) || `New ${section.type}`}
+            {stripHtml(section.content, section.type) || `New ${section.type}`}
           </span>
         )}
 
@@ -630,9 +626,21 @@ const wrapperIndent = baseIndent + depth * indentUnit;
 }
 
 // Utility to strip HTML tags
-function stripHtml(html) {
+function stripHtml(html, type) {
   if (!html) return '';
-  const tmp = document.createElement('div');
-  tmp.innerHTML = html;
-  return tmp.textContent || tmp.innerText || '';
+  if (typeof html === 'string') {
+    return html.replace(/<[^>]+>/g, '').trim();
+  }
+  switch (type) {
+    case 'table':
+      return 'Table';
+    case 'image':
+      return 'Image';
+    case 'icon':
+      return 'Icon';
+    case 'banner':
+      return 'Banner';
+    default:
+      return '';
+  }
 }

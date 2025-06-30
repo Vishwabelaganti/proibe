@@ -1,41 +1,103 @@
 import React from 'react';
 import { useNotes } from '../context/NotesContext';
 
-function PrintSection({ section, getChildSections, level = 1, parentType = null }) {
+function PrintSection({ section, getChildSections, level = 1, parentType = null, isFirst = false }) {
   if (!section) return null;
   const children = getChildSections(section.id);
   let Tag = 'div';
   let tagProps = {};
+  // Default block spacing
   let style = {
-    marginBottom: 12,
+    marginBottom: 22,
+    marginTop: isFirst ? 0 : 18,
     paddingLeft: 0,
     paddingTop: 2,
     paddingBottom: 2,
     width: '100%',
     boxSizing: 'border-box',
+    position: 'relative',
   };
-  // Heading
-  if (section.type === 'heading') {
-    Tag = 'h1';
-    tagProps = { style: { fontFamily: 'Playfair Display, serif', fontWeight: 'bold', fontSize: '2.1rem', marginBottom: '0.6em', color: section.headingColor || '#2d1c0f', textDecoration: section.headingUnderline ? 'underline' : undefined, fontStyle: section.headingItalic ? 'italic' : undefined, letterSpacing: '-1px' } };
-    style.marginTop = 0;
+
+  // Subheading (box, styled heading, plain children, equal padding)
+  if (section.type === 'subheading') {
+    return (
+      <div style={{
+        background: '#fff',
+        border: '1.5px solid #e8ded4',
+        borderRadius: 16,
+        padding: '16px 20px', // equal top/bottom padding
+        marginBottom: 22,
+        marginTop: isFirst ? 0 : 18,
+        width: '100%',
+        boxSizing: 'border-box',
+        position: 'relative',
+      }}>
+        <h2 style={{
+          fontFamily: 'Inter, sans-serif',
+          fontWeight: 700,
+          fontSize: '1.25rem',
+          margin: 0,
+          marginBottom: 8,
+          color: section.headingColor || '#bfae9b',
+          textDecoration: section.headingUnderline ? 'underline' : undefined,
+          fontStyle: section.headingItalic ? 'italic' : undefined,
+          letterSpacing: '-0.5px',
+          textAlign: 'left',
+          lineHeight: 1.3,
+        }}>{section.content}</h2>
+        {children && children.length > 0 && (
+          <div style={{ marginTop: 0 }}>
+            {children.map((child, idx) => (
+              <PrintSection key={child.id} section={child} getChildSections={getChildSections} level={level + 1} parentType={section.type} isFirst={idx === 0} />
+            ))}
+          </div>
+        )}
+      </div>
+    );
   }
-  // Subheading: full-width, very light pill/cylinder container
-  else if (section.type === 'subheading') {
-    Tag = 'h2';
-    tagProps = { style: { fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '1.15rem', marginBottom: 0, color: section.headingColor || '#bfae9b', textDecoration: section.headingUnderline ? 'underline' : undefined, fontStyle: section.headingItalic ? 'italic' : undefined, letterSpacing: '-0.5px', textAlign: 'left' } };
-    style.background = 'rgba(191, 174, 155, 0.07)'; // much lighter than background
-    style.borderRadius = 9999;
-    style.padding = '10px 24px';
-    style.marginBottom = 12;
-    style.display = 'block';
-    style.width = '100%';
-    style.boxShadow = '0 1px 4px 0 rgba(92,67,46,0.02)';
-    style.minWidth = 0;
-    style.maxWidth = '100%';
+
+  // Table (no delete column buttons)
+  if (section.type === 'table' && section.content && section.content.rows) {
+    const rows = section.content.rows;
+    const hasHeader = section.content.hasHeader;
+    return (
+      <div style={{
+        background: '#fff',
+        border: '1.5px solid #e8ded4',
+        borderRadius: 16,
+        padding: '16px 20px',
+        marginBottom: 22,
+        marginTop: isFirst ? 0 : 18,
+        width: '100%',
+        boxSizing: 'border-box',
+        position: 'relative',
+      }}>
+        <table style={{ borderCollapse: 'collapse', width: '100%', margin: '0', fontSize: 15 }}>
+          <thead>
+            <tr>
+              {rows[0].map((cell, colIdx) => (
+                <th key={colIdx} style={{ border: '1px solid #e8ded4', padding: '6px 10px', background: hasHeader ? '#f7ede2' : '#fff', fontWeight: 600, position: 'relative' }}>
+                  {cell}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.slice(1).map((row, i) => (
+              <tr key={i}>
+                {row.map((cell, j) => (
+                  <td key={j} style={{ border: '1px solid #e8ded4', padding: '6px 10px', background: '#fff', fontWeight: 400 }}>{cell}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
   }
-  // Text: container only if parent is heading
-  else if (section.type === 'text') {
+
+  // Text
+  if (section.type === 'text') {
     Tag = 'div';
     tagProps = { style: { fontFamily: 'Inter, sans-serif', fontSize: '1.05rem', marginBottom: '0.5em', color: '#2d1c0f', lineHeight: 1.7 }, dangerouslySetInnerHTML: { __html: section.content || '' } };
     if (parentType === 'heading') {
@@ -58,13 +120,88 @@ function PrintSection({ section, getChildSections, level = 1, parentType = null 
       style.boxSizing = 'border-box';
     }
   }
+
+  // Image
+  if (section.type === 'image' && section.content && section.content.url) {
+    Tag = 'figure';
+    tagProps = { style: { textAlign: section.content.alignment || 'center', margin: 0 } };
+    style.background = 'none';
+    style.border = 'none';
+    style.boxShadow = 'none';
+    style.padding = 0;
+    style.marginBottom = 18;
+  }
+
+  // Icon
+  if (section.type === 'icon' && section.content) {
+    Tag = 'div';
+    tagProps = { style: { display: 'flex', alignItems: 'center', gap: 8, fontSize: 18, color: section.content.color || '#3B82F6', fontWeight: 500 } };
+    style.background = 'none';
+    style.border = 'none';
+    style.boxShadow = 'none';
+    style.padding = 0;
+    style.marginBottom = 12;
+  }
+
+  // Banner
+  if (section.type === 'banner' && section.content) {
+    Tag = 'div';
+    let bannerBg = section.content.color ||
+      (section.content.type === 'info' ? '#e0f7fa' :
+       section.content.type === 'warning' ? '#fff3cd' :
+       section.content.type === 'success' ? '#d1f7c4' :
+       section.content.type === 'danger' ? '#ffe0e0' :
+       '#e6e6e6');
+    let bannerColor = section.content.textColor || '#333';
+    tagProps = { style: { background: bannerBg, color: bannerColor, borderRadius: 8, padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 10, fontWeight: 500, border: '1.5px solid #e8ded4' } };
+    style.background = 'none';
+    style.border = 'none';
+    style.boxShadow = 'none';
+    style.padding = 0;
+    style.marginBottom = 14;
+  }
+
+  // Other block types (image, icon, banner, text, etc.)
   return (
     <div style={style}>
-      <Tag {...tagProps}>{section.type === 'text' ? null : section.content}</Tag>
+      {/* Render block content by type */}
+      {section.type === 'image' && section.content && section.content.url ? (
+        <figure style={{ textAlign: section.content.alignment || 'center', margin: 0 }}>
+          <img src={section.content.url} alt={section.content.alt || ''} style={{ maxWidth: '100%', width: section.content.width || 'auto', borderRadius: 8, margin: '0 auto' }} />
+          {section.content.caption && <figcaption style={{ fontSize: 13, color: '#8A6F53', marginTop: 4 }}>{section.content.caption}</figcaption>}
+        </figure>
+      ) : section.type === 'icon' && section.content ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 18, color: section.content.color || '#3B82F6', fontWeight: 500 }}>
+          <span style={{ fontSize: 28, marginRight: 6 }}>{getIconEmoji(section.content.icon)}</span>
+          <span>{section.content.text}</span>
+        </div>
+      ) : section.type === 'banner' && section.content ? (
+        <div style={tagProps.style}>
+          {section.content.showIcon && <span style={{ fontSize: 22, marginRight: 8 }}>⚑</span>}
+          <span>{section.content.text}</span>
+        </div>
+      ) : section.type === 'table' && section.content && section.content.rows ? (
+        <table style={{ borderCollapse: 'collapse', width: '100%', margin: '10px 0', fontSize: 15 }}>
+          <tbody>
+            {section.content.rows.map((row, i) => (
+              <tr key={i}>
+                {row.map((cell, j) => (
+                  <td key={j} style={{ border: '1px solid #e8ded4', padding: '6px 10px', background: i === 0 && section.content.hasHeader ? '#f7ede2' : '#fff', fontWeight: i === 0 && section.content.hasHeader ? 600 : 400 }}>{cell}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        // Only render section.content directly for string-based types
+        ["heading", "subheading", "text"].includes(section.type) ? (
+          <Tag {...tagProps}>{section.type === 'text' ? null : section.content}</Tag>
+        ) : null
+      )}
       {children && children.length > 0 && (
-        <div style={{ marginTop: 6 }}>
-          {children.map(child => (
-            <PrintSection key={child.id} section={child} getChildSections={getChildSections} level={level + 1} parentType={section.type} />
+        <div style={{ marginTop: 0 }}>
+          {children.map((child, idx) => (
+            <PrintSection key={child.id} section={child} getChildSections={getChildSections} level={level + 1} parentType={section.type} isFirst={idx === 0} />
           ))}
         </div>
       )}
@@ -72,207 +209,61 @@ function PrintSection({ section, getChildSections, level = 1, parentType = null 
   );
 }
 
-export function getPdfBookmarks(sections, getChildSections, parentId = null, level = 0) {
-  // Recursively collect bookmarks for headings/subheadings
-  const bookmarks = [];
-  const children = getChildSections(parentId);
-  for (const section of children) {
-    if (section.type === 'heading' || section.type === 'subheading') {
-      bookmarks.push({
-        title: section.content || 'Untitled',
-        level,
-        id: section.id,
-        children: getPdfBookmarks(sections, getChildSections, section.id, level + 1)
-      });
-    }
-    // Always recurse for children
-    bookmarks.push(...getPdfBookmarks(sections, getChildSections, section.id, level + 1));
-  }
-  return bookmarks;
+// Helper: map icon name to emoji (fallback to star)
+function getIconEmoji(name) {
+  if (!name) return '★';
+  const map = {
+    Star: '★',
+    Smile: '😊',
+    Flag: '⚑',
+    CheckSquare: '☑️',
+    Image: '🖼️',
+    Table: '📊',
+    Type: '✏️',
+    Heading1: '🔠',
+    Heading2: '🔡',
+    Code: '💻',
+    Quote: '❝',
+  };
+  return map[name] || '★';
 }
 
 export default function NotesPrintView({ rootId, style = {} }) {
   const { sections, getChildSections } = useNotes();
-  const root = sections.find(s => s.id === rootId);
-  if (!root) return null;
-  const today = new Date();
-  const dateStr = today.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+  const rootSection = sections.find(s => s.id === rootId);
+  if (!rootSection) return null;
   return (
-    <div className="proibe-export-area pdf-export-bg" style={{ width: '100%', minHeight: '100vh', ...style }}>
-      <style>{`
-        .pdf-export-bg {
-          background: #fdf8f3 !important;
-        }
-        .pdf-title {
-          font-family: 'Playfair Display', 'Libre Baskerville', Georgia, serif;
-          font-size: 2.6rem;
-          font-weight: bold;
-          text-align: center;
-          color: #2d1c0f;
-          margin-top: 48px;
-          margin-bottom: 0.5em;
-        }
-        .pdf-date {
-          text-align: center;
-          color: #a67c52;
-          font-family: 'Inter', 'Libre Baskerville', serif;
-          font-size: 1.15rem;
-          margin-bottom: 2.2em;
-        }
-        .pdf-section {
-          background: #f3eee7;
-          border-radius: 2.2em;
-          padding: 2em 2.2em 1.7em 2.2em;
-          margin: 0 auto 2.2em auto;
-          max-width: 900px;
-          box-shadow: none;
-          width: 90%;
-        }
-        .pdf-section h2 {
-          font-family: 'Playfair Display', 'Libre Baskerville', Georgia, serif;
-          font-size: 1.45rem;
-          font-weight: bold;
-          color: #2d1c0f;
-          margin-bottom: 0.7em;
-          margin-top: 0;
-          text-align: left;
-        }
-        .pdf-subheading {
-          font-family: 'Inter', 'Libre Baskerville', serif;
-          font-size: 1.1rem;
-          font-weight: 600;
-          color: #a67c52;
-          margin-bottom: 0.7em;
-          margin-top: 0;
-          text-align: left;
-          letter-spacing: 0.01em;
-        }
-        .pdf-body {
-          font-family: 'Libre Baskerville', Georgia, serif;
-          font-size: 1.08rem;
-          color: #bfae9b;
-          font-style: italic;
-          text-align: left;
-          margin-bottom: 0;
-        }
-        .pdf-body * {
-          font-family: inherit !important;
-          color: #bfae9b !important;
-          font-style: italic !important;
-        }
-        .pdf-body strong, .pdf-body b {
-          font-weight: bold !important;
-          color: #2d1c0f !important;
-          font-style: italic !important;
-        }
-        .pdf-body em, .pdf-body i {
-          font-style: italic !important;
-        }
-        .pdf-body u {
-          text-decoration: underline !important;
-        }
-        .pdf-body ul, .pdf-body ol {
-          margin-left: 1.2em;
-          margin-bottom: 0.7em;
-        }
-        .pdf-body li {
-          margin-bottom: 0.2em;
-        }
-        .pdf-footer {
-          text-align: center;
-          color: #a67c52;
-          font-family: 'Inter', 'Libre Baskerville', serif;
-          font-size: 1.05rem;
-          margin-top: 2.2em;
-          margin-bottom: 0;
-        }
-      `}</style>
-      <div className="pdf-title">{root.content || 'Untitled'}</div>
-      <div className="pdf-date">{dateStr}</div>
-      {getChildSections(root.id).map(section => (
-        <SectionBox key={section.id} section={section} getChildSections={getChildSections} />
-      ))}
-      <div className="pdf-footer">
-        Exported from Proibe – {dateStr}
-      </div>
+    <div
+      className="bg-white p-8 max-w-4xl mx-auto"
+      style={{
+        fontFamily: '"Inter", sans-serif',
+        lineHeight: '1.6',
+        color: '#4A3B2F',
+        ...style
+      }}
+    >
+      <PrintSection section={rootSection} getChildSections={getChildSections} />
     </div>
   );
 }
 
-function SectionBox({ section, getChildSections, parentSubheadingColor }) {
-  const children = getChildSections(section.id);
-  const isSubheading = section.type === 'subheading';
-  // Only render the section if it or any of its children have content
-  const hasContent = section.content || (children && children.some(child => child.content && child.content.trim() !== ''));
-  if (!hasContent && section.type !== 'text') return null;
-  function renderBodyContent(content) {
-    return { __html: content };
+export function getPdfBookmarks(sections, getChildSections, rootId, depth = 0) {
+  const section = sections.find(s => s.id === rootId);
+  if (!section) return [];
+
+  const bookmarks = [];
+  
+  if (section.type === 'heading' || section.type === 'subheading') {
+    bookmarks.push({
+      title: section.content || 'Untitled',
+      level: depth,
+      id: section.id,
+      children: getPdfBookmarks(sections, getChildSections, section.id, depth + 1)
+    });
   }
-  // Outlined pill style for all section types, refined for modern look
-  const pillStyle = {
-    background: '#fff',
-    border: '1.2px solid #ede7df', // lighter border
-    borderRadius: '1.6em', // tighter radius
-    boxShadow: 'none',
-    margin: '0 auto 1.1em auto', // less margin between pills
-    maxWidth: 900,
-    width: '90%',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-    justifyContent: 'flex-start',
-    padding: '1.1em 1.5em 1em 1.5em', // less vertical padding
-  };
-  // Heading inside pill
-  if (section.type === 'heading') {
-    return (
-      <div className="pdf-section" style={pillStyle}>
-        <h2 style={{ fontFamily: 'Playfair Display, serif', fontWeight: 'bold', fontSize: '1.25rem', color: '#2d1c0f', margin: 0, marginBottom: '0.2em', lineHeight: 1.1 }}>{section.content}</h2>
-        {children.map((child, idx) => (
-          <SectionBox
-            key={child.id || idx}
-            section={child}
-            getChildSections={getChildSections}
-            parentSubheadingColor={parentSubheadingColor}
-          />
-        ))}
-      </div>
-    );
-  }
-  // Subheading inside pill
-  if (isSubheading) {
-    return (
-      <div className="pdf-section" style={pillStyle}>
-        <h2 className="pdf-subheading" style={{ color: section.headingColor || '#a67c52', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '1.08rem', margin: 0, marginBottom: '0.15em', lineHeight: 1.1 }}>{section.content}</h2>
-        {children.map((child, idx) => (
-          <SectionBox
-            key={child.id || idx}
-            section={child}
-            getChildSections={getChildSections}
-            parentSubheadingColor={section.headingColor || parentSubheadingColor}
-          />
-        ))}
-      </div>
-    );
-  }
-  // Text section inside pill
-  if (section.type === 'text') {
-    const color = parentSubheadingColor || '#2d1c0f';
-    const customStyle = section.textColor || section.textFont ? {
-      color: section.textColor || color,
-      fontFamily: section.textFont || undefined,
-    } : {};
-    return (
-      <div className="pdf-section pdf-textbox" style={{ ...pillStyle, padding: '0.7em 1.3em 0.7em 1.3em', margin: '0 auto 0.7em auto', ...customStyle }}>
-        <div
-          className="prose tiptap pdf-body"
-          style={{ color: customStyle.color || color, fontFamily: customStyle.fontFamily, fontStyle: 'inherit', fontSize: '1.08rem', width: '100%', fontWeight: 400 }}
-          dangerouslySetInnerHTML={renderBodyContent(section.content)}
-        />
-        <style>{`.pdf-section.pdf-textbox .pdf-body * { color: ${customStyle.color || color} !important; font-family: ${customStyle.fontFamily || 'inherit'} !important; font-size: 1.08rem !important; font-weight: 400 !important; }`}</style>
-      </div>
-    );
-  }
-  // Fallback for any other section type
-  return null;
+
+  // Always recurse for children
+  bookmarks.push(...getPdfBookmarks(sections, getChildSections, section.id, depth + 1));
+
+  return bookmarks;
 }

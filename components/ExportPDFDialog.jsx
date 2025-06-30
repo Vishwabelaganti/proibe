@@ -1,132 +1,144 @@
 import React, { useState } from 'react';
+import { X, Download, Eye } from 'lucide-react';
 
-const PAPER_SIZES = [
-  { label: 'A4 (Portrait)', value: 'a4' },
-  { label: 'Letter (Portrait)', value: 'letter' },
-];
-const FONT_STYLES = [
-  { label: 'Inter (Default)', value: 'inter' },
-  { label: 'Serif', value: 'serif' },
-  { label: 'Playfair', value: 'playfair' },
-];
-const THEMES = [
-  { label: 'Light (Current)', value: 'light' },
-  { label: 'Dark', value: 'dark' },
-];
+export default function ExportPDFDialog({ open, onClose, onExport, previewContent, defaultOptions = {} }) {
+  const [options, setOptions] = useState({
+    includeBookmarks: true,
+    pageSize: 'A4',
+    orientation: 'portrait',
+    ...defaultOptions
+  });
 
-export default function ExportPDFDialog({
-  open,
-  onClose,
-  onExport,
-  previewContent,
-  defaultOptions = {},
-}) {
-  const [paperSize, setPaperSize] = useState(defaultOptions.paperSize || 'a4');
-  const [fontStyle, setFontStyle] = useState(defaultOptions.fontStyle || 'inter');
-  const [theme, setTheme] = useState(defaultOptions.theme || 'light');
-  const [includeDate, setIncludeDate] = useState(defaultOptions.includeDate || false);
-  const [addPageNumbers, setAddPageNumbers] = useState(defaultOptions.addPageNumbers !== false);
+  const [showPreview, setShowPreview] = useState(false);
 
-  // --- Preview Sizing ---
-  // Make preview larger and centered, with a better scale for readability
-  const PAGE_SIZES = {
-    a4: { width: 794, height: 1123 },
-    letter: { width: 816, height: 1056 },
+  if (!open) return null;
+
+  const handleExport = () => {
+    onExport(options);
   };
-  const pageDims = PAGE_SIZES[paperSize] || PAGE_SIZES.a4;
-  const PREVIEW_MAX_WIDTH = 480; // larger preview
-  const PREVIEW_MAX_HEIGHT = 700;
-  const scale = Math.min(
-    PREVIEW_MAX_WIDTH / pageDims.width,
-    PREVIEW_MAX_HEIGHT / pageDims.height,
-    1
-  );
-
-  // Render the preview using the same NotesPrintView as the PDF export, always passing through user stylization
-  const previewPage = (
-    <div
-      style={{
-        width: pageDims.width,
-        height: pageDims.height,
-        background: '#fff',
-        boxShadow: '0 1px 8px 0 rgba(92,67,46,0.07)',
-        borderRadius: 16,
-        border: '1px solid #eee',
-        margin: '0 auto',
-        position: 'relative',
-        transform: `scale(${scale})`,
-        transformOrigin: 'top center',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        overflow: 'visible', // allow overflow for scroll
-      }}
-    >
-      {previewContent}
-    </div>
-  );
 
   return (
-    open && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20">
-        <div className="bg-white rounded-xl shadow-xl p-0 w-full max-w-4xl flex flex-col md:flex-row overflow-hidden">
-          <div className="flex-1 min-w-[260px] p-8 border-b md:border-b-0 md:border-r border-gray-200">
-            <h2 className="text-2xl font-bold mb-4">Export PDF Options</h2>
-            <div className="mb-4">
-              <label className="block font-medium mb-1">Paper Size</label>
-              <select className="w-full border rounded px-2 py-1" value={paperSize} onChange={e => setPaperSize(e.target.value)}>
-                {PAPER_SIZES.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-              </select>
-            </div>
-            <div className="mb-4">
-              <label className="block font-medium mb-1">Font Style</label>
-              <select className="w-full border rounded px-2 py-1" value={fontStyle} onChange={e => setFontStyle(e.target.value)}>
-                {FONT_STYLES.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-              </select>
-            </div>
-            <div className="mb-4">
-              <label className="block font-medium mb-1">Theme</label>
-              <select className="w-full border rounded px-2 py-1" value={theme} onChange={e => setTheme(e.target.value)}>
-                {THEMES.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-              </select>
-            </div>
-            <div className="mb-2 flex items-center gap-2">
-              <input type="checkbox" id="include-date" checked={includeDate} onChange={e => setIncludeDate(e.target.checked)} />
-              <label htmlFor="include-date">Include current date</label>
-            </div>
-            <div className="mb-6 flex items-center gap-2">
-              <input type="checkbox" id="add-page-numbers" checked={addPageNumbers} onChange={e => setAddPageNumbers(e.target.checked)} />
-              <label htmlFor="add-page-numbers">Add page numbers</label>
-            </div>
-            <div className="flex gap-2 mt-4">
-              <button className="px-4 py-2 bg-accent text-white rounded shadow hover:bg-accent/80 transition" onClick={() => onExport({ paperSize, fontStyle, theme, includeDate, addPageNumbers })}>Export PDF</button>
-              <button className="px-4 py-2 bg-gray-200 rounded shadow hover:bg-gray-300 transition" onClick={onClose}>Cancel</button>
-            </div>
-          </div>
-          <div className="flex-1 min-w-[260px] p-8 overflow-auto flex flex-col items-center justify-center" style={{ maxHeight: '80vh' }}>
-            <h3 className="text-lg font-semibold mb-2">Live Preview</h3>
-            <div
-              className="border rounded bg-gray-50 flex items-center justify-center overflow-auto"
-              style={{
-                minHeight: PREVIEW_MAX_HEIGHT + 32,
-                minWidth: PREVIEW_MAX_WIDTH + 32,
-                maxHeight: '70vh',
-                maxWidth: '100%',
-                padding: 0,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                overflow: 'auto', // ensure scroll if needed
-                background: '#f8f6f3',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
-                {previewPage}
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-earth-200">
+          <h2 className="text-xl font-semibold text-earth-800">Export as PDF</h2>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-earth-100 rounded-full transition-colors"
+          >
+            <X size={20} className="text-earth-600" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="p-6">
+          {!showPreview ? (
+            <>
+              {/* Export Options */}
+              <div className="space-y-4 mb-6">
+                <div>
+                  <label className="block text-sm font-medium text-earth-700 mb-2">
+                    Page Size
+                  </label>
+                  <select
+                    value={options.pageSize}
+                    onChange={(e) => setOptions(prev => ({ ...prev, pageSize: e.target.value }))}
+                    className="w-full p-2 border border-earth-300 rounded-md focus:ring-2 focus:ring-accent focus:border-accent"
+                  >
+                    <option value="A4">A4</option>
+                    <option value="Letter">Letter</option>
+                    <option value="Legal">Legal</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-earth-700 mb-2">
+                    Orientation
+                  </label>
+                  <select
+                    value={options.orientation}
+                    onChange={(e) => setOptions(prev => ({ ...prev, orientation: e.target.value }))}
+                    className="w-full p-2 border border-earth-300 rounded-md focus:ring-2 focus:ring-accent focus:border-accent"
+                  >
+                    <option value="portrait">Portrait</option>
+                    <option value="landscape">Landscape</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="includeBookmarks"
+                    checked={options.includeBookmarks}
+                    onChange={(e) => setOptions(prev => ({ ...prev, includeBookmarks: e.target.checked }))}
+                    className="rounded border-earth-300 text-accent focus:ring-accent"
+                  />
+                  <label htmlFor="includeBookmarks" className="ml-2 text-sm text-earth-700">
+                    Include bookmarks for navigation
+                  </label>
+                </div>
               </div>
-            </div>
-          </div>
+
+              {/* Actions */}
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setShowPreview(true)}
+                  className="px-4 py-2 text-earth-600 hover:bg-earth-100 rounded-md transition-colors flex items-center gap-2"
+                >
+                  <Eye size={16} />
+                  Preview
+                </button>
+                <button
+                  onClick={onClose}
+                  className="px-4 py-2 text-earth-600 hover:bg-earth-100 rounded-md transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleExport}
+                  className="px-4 py-2 bg-accent text-white rounded-md hover:bg-accent/90 transition-colors flex items-center gap-2"
+                >
+                  <Download size={16} />
+                  Export PDF
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Preview */}
+              <div className="mb-4">
+                <button
+                  onClick={() => setShowPreview(false)}
+                  className="text-accent hover:text-accent/80 text-sm"
+                >
+                  ← Back to options
+                </button>
+              </div>
+              
+              <div className="border border-earth-200 rounded-lg overflow-hidden max-h-96 overflow-y-auto">
+                {previewContent}
+              </div>
+
+              <div className="flex gap-3 justify-end mt-4">
+                <button
+                  onClick={onClose}
+                  className="px-4 py-2 text-earth-600 hover:bg-earth-100 rounded-md transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleExport}
+                  className="px-4 py-2 bg-accent text-white rounded-md hover:bg-accent/90 transition-colors flex items-center gap-2"
+                >
+                  <Download size={16} />
+                  Export PDF
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
-    )
+    </div>
   );
 }
