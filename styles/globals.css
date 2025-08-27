@@ -9,6 +9,21 @@
   font-weight: bold !important;
 }
 
+/* Main content scrollbar */
+.main-content-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+.main-content-scroll::-webkit-scrollbar-track {
+  background: rgba(241, 238, 235, 0.5);
+}
+.main-content-scroll::-webkit-scrollbar-thumb {
+  background: rgba(92, 67, 46, 0.3);
+  border-radius: 4px;
+}
+.main-content-scroll:hover::-webkit-scrollbar-thumb {
+  background: rgba(92, 67, 46, 0.5);
+}
+
 /* Thin earth-tone scrollbar for sidebar */
 .sidebar-scroll::-webkit-scrollbar {
   width: 6px;
@@ -41,7 +56,16 @@ body {
 }
 
 html { @apply antialiased; }
-h1, h2, h3, h4 { @apply font-serif; }   
+h1, h2, h3, h4 { @apply font-serif; }
+
+/* Force top-level heading styles */
+.proibe-top-heading {
+  font-size: 2.25rem !important;
+  font-weight: bold !important;
+  line-height: 2.5rem !important;
+  color: #4A3B2F !important;
+  font-family: 'Playfair Display', serif !important;
+}   
 
 .tiptap h1,
 .tiptap h2,
@@ -67,6 +91,9 @@ h1, h2, h3, h4 { @apply font-serif; }
   margin: 0 !important;
   width: 100% !important;
   height: 100% !important;
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+  hyphens: auto !important;
 }
 
 .proibe-export-area .subheading-pill {
@@ -86,6 +113,9 @@ h1, h2, h3, h4 { @apply font-serif; }
   font-size: 2rem;
   font-weight: bold;
   margin-bottom: 1.2em;
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+  hyphens: auto !important;
 }
 
 .proibe-export-area h2, .proibe-export-area .text-xl {
@@ -93,12 +123,106 @@ h1, h2, h3, h4 { @apply font-serif; }
   font-size: 1.3rem;
   font-weight: 600;
   margin-bottom: 1em;
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+  hyphens: auto !important;
 }
 
 .proibe-export-area .prose, .proibe-export-area .tiptap {
   font-family: 'Inter', serif;
   font-size: 1rem;
   color: #2d1c0f;
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+  hyphens: auto !important;
+}
+
+.proibe-export-area pre, .proibe-export-area code {
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+  white-space: pre-wrap !important;
+}
+
+.proibe-export-area pre {
+  background: #2d3748 !important;
+  border-radius: 8px !important;
+  padding: 16px !important;
+  margin: 16px 0 !important;
+  border: 1px solid #4a5568 !important;
+}
+
+.proibe-export-area code {
+  background: #2d3748 !important;
+  color: #ffffff !important;
+  font-family: 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', monospace !important;
+  font-size: 0.9em !important;
+  padding: 2px 4px !important;
+  border-radius: 4px !important;
+}
+
+.proibe-export-area pre code {
+  background: transparent !important;
+  padding: 0 !important;
+  color: #ffffff !important;
+  font-size: 0.875rem !important;
+}
+
+/* Override Tailwind classes in export */
+.proibe-export-area .bg-earth-100 {
+  background: #2d3748 !important;
+}
+
+.proibe-export-area .text-earth-800 {
+  color: #ffffff !important;
+}
+
+.proibe-export-area .text-earth-600 {
+  color: #6b5b47 !important;
+}
+
+.proibe-export-area .font-mono {
+  font-family: 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', monospace !important;
+}
+
+.proibe-export-area .border-accent {
+  border-color: #8A6F53 !important;
+}
+
+.proibe-export-area .text-sm {
+  font-size: 0.875rem !important;
+}
+
+.proibe-export-area .text-xs {
+  font-size: 0.75rem !important;
+}
+
+/* More specific overrides for code elements */
+.proibe-export-area pre.bg-earth-100 code.text-earth-800 {
+  color: #ffffff !important;
+  background: transparent !important;
+}
+
+.proibe-export-area .bg-earth-100.rounded-lg code {
+  color: #ffffff !important;
+}
+
+/* Very specific override for any code element in export */
+.proibe-export-area * code,
+.proibe-export-area * code *,
+.proibe-export-area pre * {
+  color: #ffffff !important;
+}
+
+/* Additional backup rule */
+.proibe-export-area [style*="color"] code {
+  color: #ffffff !important;
+}
+
+/* Ensure pre elements have dark background */
+.proibe-export-area pre,
+.proibe-export-area pre.bg-earth-100 {
+  background: #2d3748 !important;
+  border: 1px solid #4a5568 !important;
 }
 
 .proibe-export-area .rounded-xl {
@@ -216,5 +340,121 @@ h1, h2, h3, h4 { @apply font-serif; }
   font-size: 1.05rem;
   margin-top: 2.2em;
   margin-bottom: 0;
+}
+
+/* Animation for GapButton menu */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.15s ease-out;
+}
+
+/* Smooth gap button animations */
+@keyframes gap-button-appear {
+  0% {
+    opacity: 0;
+    transform: translateY(-50%) scale(0.8);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
+}
+
+@keyframes gap-button-disappear {
+  0% {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-50%) scale(0.8);
+  }
+}
+
+@keyframes gap-line-expand {
+  0% {
+    height: 0;
+    opacity: 0;
+  }
+  100% {
+    height: 1px;
+    opacity: 0.4;
+  }
+}
+
+@keyframes gap-line-contract {
+  0% {
+    height: 1px;
+    opacity: 0.4;
+  }
+  100% {
+    height: 0;
+    opacity: 0;
+  }
+}
+
+.gap-button-visible {
+  animation: gap-button-appear 0.3s ease-out forwards;
+}
+
+.gap-button-hidden {
+  animation: gap-button-disappear 0.3s ease-in forwards;
+}
+
+@keyframes menu-fade-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-50%) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
+}
+
+.animate-menu-in {
+  animation: menu-fade-in 0.2s ease-out forwards;
+}
+
+/* Enhanced aesthetics for the note editor */
+.backdrop-blur-sm {
+  backdrop-filter: blur(4px);
+}
+
+/* Custom gradient borders */
+.border-gradient-to-r {
+  border-image: linear-gradient(to right, rgba(139, 69, 19, 0.3), rgba(181, 193, 142, 0.3)) 1;
+}
+
+/* Enhanced shadow effects */
+.shadow-elegant {
+  box-shadow: 0 4px 6px -1px rgba(139, 69, 19, 0.1), 0 2px 4px -1px rgba(139, 69, 19, 0.06);
+}
+
+/* Subtle animations */
+@keyframes gentle-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+
+.animate-gentle-bounce {
+  animation: gentle-bounce 2s ease-in-out infinite;
+}
+
+/* Enhanced focus states */
+.focus-elegant:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(139, 69, 19, 0.1);
+  border-color: rgba(139, 69, 19, 0.3);
 }
 

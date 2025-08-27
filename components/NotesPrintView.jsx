@@ -33,8 +33,8 @@ function PrintSection({ section, getChildSections, level = 1, parentType = null,
         position: 'relative',
       }}>
         <h2 style={{
-          fontFamily: 'Inter, sans-serif',
-          fontWeight: 700,
+          fontFamily: section.headingFont || 'Inter, sans-serif',
+          fontWeight: section.headingBold ? 'bold' : 700,
           fontSize: '1.25rem',
           margin: 0,
           marginBottom: 8,
@@ -56,10 +56,47 @@ function PrintSection({ section, getChildSections, level = 1, parentType = null,
     );
   }
 
+  // Main Heading (H1) - large, prominent styling
+  if (section.type === 'heading') {
+    return (
+      <div style={{
+        marginBottom: 24,
+        marginTop: isFirst ? 0 : 32,
+        width: '100%',
+        boxSizing: 'border-box',
+        position: 'relative',
+        pageBreakInside: 'avoid',
+      }}>
+        <h1 style={{
+          fontFamily: section.headingFont || '"Playfair Display", serif',
+          fontWeight: section.headingBold ? 'bold' : 'bold',
+          fontSize: '2.25rem',
+          margin: 0,
+          marginBottom: 20,
+          color: section.headingColor || '#4A3B2F',
+          textDecoration: section.headingUnderline ? 'underline' : undefined,
+          fontStyle: section.headingItalic ? 'italic' : undefined,
+          textAlign: 'left',
+          lineHeight: 1.2,
+          wordWrap: 'break-word',
+          overflowWrap: 'break-word',
+          hyphens: 'auto',
+        }}>{section.content}</h1>
+        {children && children.length > 0 && (
+          <div style={{ marginTop: 0 }}>
+            {children.map((child, idx) => (
+              <PrintSection key={child.id} section={child} getChildSections={getChildSections} level={level + 1} parentType={section.type} isFirst={idx === 0} />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   // Table (no delete column buttons)
   if (section.type === 'table' && section.content && section.content.rows) {
     const rows = section.content.rows;
-    const hasHeader = section.content.hasHeader;
+    const headerRows = section.content.headerRows || (section.content.hasHeader ? [0] : []);
     return (
       <div style={{
         background: '#fff',
@@ -73,23 +110,25 @@ function PrintSection({ section, getChildSections, level = 1, parentType = null,
         position: 'relative',
       }}>
         <table style={{ borderCollapse: 'collapse', width: '100%', margin: '0', fontSize: 15 }}>
-          <thead>
-            <tr>
-              {rows[0].map((cell, colIdx) => (
-                <th key={colIdx} style={{ border: '1px solid #e8ded4', padding: '6px 10px', background: hasHeader ? '#f7ede2' : '#fff', fontWeight: 600, position: 'relative' }}>
-                  {cell}
-                </th>
-              ))}
-            </tr>
-          </thead>
           <tbody>
-            {rows.slice(1).map((row, i) => (
-              <tr key={i}>
-                {row.map((cell, j) => (
-                  <td key={j} style={{ border: '1px solid #e8ded4', padding: '6px 10px', background: '#fff', fontWeight: 400 }}>{cell}</td>
-                ))}
-              </tr>
-            ))}
+            {rows.map((row, rowIdx) => {
+              const isHeader = headerRows.includes(rowIdx);
+              return (
+                <tr key={rowIdx}>
+                  {row.map((cell, colIdx) => (
+                    <td key={colIdx} style={{ 
+                      border: '1px solid #e8ded4', 
+                      padding: '8px 12px', 
+                      background: isHeader ? '#f0e6d6' : '#fff', 
+                      fontWeight: isHeader ? 600 : 400,
+                      color: isHeader ? '#2d1c0f' : '#4a3b2f'
+                    }}>
+                      {cell}
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -99,16 +138,29 @@ function PrintSection({ section, getChildSections, level = 1, parentType = null,
   // Text
   if (section.type === 'text') {
     Tag = 'div';
-    tagProps = { style: { fontFamily: 'Inter, sans-serif', fontSize: '1.05rem', marginBottom: '0.5em', color: '#2d1c0f', lineHeight: 1.7 }, dangerouslySetInnerHTML: { __html: section.content || '' } };
+    tagProps = { 
+      style: { 
+        fontFamily: 'Inter, sans-serif', 
+        fontSize: '1.05rem', 
+        marginBottom: '0.75em', 
+        color: '#2d1c0f', 
+        lineHeight: 1.6,
+        wordWrap: 'break-word',
+        overflowWrap: 'break-word',
+        hyphens: 'auto',
+      }, 
+      dangerouslySetInnerHTML: { __html: section.content || '' } 
+    };
     if (parentType === 'heading') {
       style.background = '#fff';
       style.border = '1.5px solid #e8ded4';
       style.borderRadius = 12;
-      style.padding = '12px 16px 8px 16px';
-      style.marginBottom = 10;
+      style.padding = '16px 20px';
+      style.marginBottom = 12;
       style.boxShadow = '0 1px 4px 0 rgba(92,67,46,0.02)';
       style.width = '100%';
       style.boxSizing = 'border-box';
+      style.pageBreakInside = 'avoid';
     } else {
       style.background = 'none';
       style.border = 'none';
@@ -183,13 +235,25 @@ function PrintSection({ section, getChildSections, level = 1, parentType = null,
       ) : section.type === 'table' && section.content && section.content.rows ? (
         <table style={{ borderCollapse: 'collapse', width: '100%', margin: '10px 0', fontSize: 15 }}>
           <tbody>
-            {section.content.rows.map((row, i) => (
-              <tr key={i}>
-                {row.map((cell, j) => (
-                  <td key={j} style={{ border: '1px solid #e8ded4', padding: '6px 10px', background: i === 0 && section.content.hasHeader ? '#f7ede2' : '#fff', fontWeight: i === 0 && section.content.hasHeader ? 600 : 400 }}>{cell}</td>
-                ))}
-              </tr>
-            ))}
+            {section.content.rows.map((row, i) => {
+              const headerRows = section.content.headerRows || (section.content.hasHeader ? [0] : []);
+              const isHeader = headerRows.includes(i);
+              return (
+                <tr key={i}>
+                  {row.map((cell, j) => (
+                    <td key={j} style={{ 
+                      border: '1px solid #e8ded4', 
+                      padding: '8px 12px', 
+                      background: isHeader ? '#f0e6d6' : '#fff', 
+                      fontWeight: isHeader ? 600 : 400,
+                      color: isHeader ? '#2d1c0f' : '#4a3b2f'
+                    }}>
+                      {cell}
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       ) : (

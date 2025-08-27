@@ -7,14 +7,14 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-} from '@dnd-kit/core'
-import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import SortableSection from './SortableSection.jsx'
-import GapButton from './GapButton'
+} from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import SortableSection from './SortableSection';
+import GapButton from './GapButton';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import NotesPrintView, { getPdfBookmarks } from './NotesPrintView';
-import { useNotes } from '../context/NotesContext'
+import { useNotes } from '../context/NotesContext';
 import ExportPDFDialog from './ExportPDFDialog';
 
 export default function NoteEditor() {
@@ -25,16 +25,13 @@ export default function NoteEditor() {
     reorderSections,
     getChildSections,
     setActiveSection,
-  } = useNotes()
-
-  const [draggingId, setDraggingId] = React.useState(null)
+  } = useNotes();
+  const [draggingId, setDraggingId] = React.useState(null);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
-  )
-
+  );
   // Track which block is being edited (for all block types)
   const [editingBlockId, setEditingBlockId] = React.useState(null);
-
   // Clear editingBlockId when activeSection changes to a non-leaf section
   React.useEffect(() => {
     const picked = sections.find((s) => s.id === activeSection);
@@ -42,19 +39,15 @@ export default function NoteEditor() {
       setEditingBlockId(null);
     }
   }, [activeSection, sections]);
-
   function handleDragStart({ active }) {
-    setDraggingId(active.id)
+    setDraggingId(active.id);
   }
-
   function handleDragEnd({ active, over }) {
-    setDraggingId(null)
-    if (!active?.id || !over?.id) return
-
-    const dragged = sections.find((s) => s.id === active.id)
-    const target  = sections.find((s) => s.id === over.id)
-    if (!dragged || !target) return
-
+    setDraggingId(null);
+    if (!active?.id || !over?.id) return;
+    const dragged = sections.find((s) => s.id === active.id);
+    const target  = sections.find((s) => s.id === over.id);
+    if (!dragged || !target) return;
     // 1) onto heading → reparent
     if (target.type === 'heading' && ['subheading','text','table','image','icon','banner'].includes(dragged.type)) {
       updateSection(dragged.id, { parent: target.id })
@@ -195,6 +188,7 @@ export default function NoteEditor() {
           Export as PDF
         </button>
       </div>
+
       {/* Export PDF Dialog */}
       <ExportPDFDialog
         open={showExportDialog}
@@ -206,6 +200,7 @@ export default function NoteEditor() {
         previewContent={<NotesPrintView rootId={rootSection?.id} style={{ boxShadow: 'none', border: 'none', margin: 0, background: 'transparent' }} />}
         defaultOptions={{}}
       />
+
       {/* Main interactive editor UI as before */}
       <div className="flex-1 overflow-y-auto px-4 py-6">
         {/* Hidden print view for PDF export only (off-screen, but visible to html2canvas) */}

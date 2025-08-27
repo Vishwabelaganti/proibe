@@ -8,8 +8,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "predeploy": "next build && next export",
-    "deploy": "gh-pages -d out"
+    "predeploy": "npm run export",
+    "deploy": "gh-pages -d docs",
+    "export": "EXPORT=true next build && EXPORT=true next export -o docs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

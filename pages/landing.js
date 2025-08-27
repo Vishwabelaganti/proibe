@@ -26,7 +26,7 @@ export default function Landing() {
             Organize, visualize, and enjoy your ideas.
           </p>
           <div className="flex flex-col md:flex-row gap-4 justify-center items-center mb-10">
-            <Link href="/app" legacyBehavior>
+            <Link href="/login" legacyBehavior>
               <a className="px-8 py-3 bg-accent text-white rounded-lg shadow-lg text-lg font-semibold hover:bg-accent/90 transition">
                 Open App
               </a>

@@ -316,11 +316,27 @@ export default function SortableSection({
 
   // Compute inline style for heading/subheading
   const headingStyle = {
-    color: headingColor || '#000',
-    fontWeight: headingBold ? 'bold' : undefined,
-    fontStyle: headingItalic ? 'italic' : undefined,
-    textDecoration: headingUnderline ? 'underline' : undefined,
-    fontFamily: (typeof headingFont !== 'undefined' ? headingFont : '') || undefined,
+    color: section.id === 'welcome-heading' ? '#4A3B2F' : (section.headingColor || headingColor || '#000'),
+    fontWeight: section.id === 'welcome-heading' ? 'bold' : (section.headingBold || headingBold) ? 'bold' : undefined,
+    fontStyle: (section.headingItalic || headingItalic) ? 'italic' : undefined,
+    textDecoration: (section.headingUnderline || headingUnderline) ? 'underline' : undefined,
+    fontFamily: section.id === 'welcome-heading' 
+      ? '"Playfair Display", serif' 
+      : (section.headingFont || headingFont) || undefined,
+    fontSize: section.id === 'welcome-heading' 
+      ? '2.5rem' 
+      : section.type === 'heading' 
+      ? '2.25rem' 
+      : section.type === 'subheading' 
+      ? '1.5rem' 
+      : undefined,
+    lineHeight: section.id === 'welcome-heading' 
+      ? '1.2' 
+      : section.type === 'heading' 
+      ? '1.3' 
+      : section.type === 'subheading' 
+      ? '1.4' 
+      : undefined,
   };
 
   // Render text section directly and return if type is 'text'
@@ -447,20 +463,33 @@ export default function SortableSection({
             <GripVertical className="text-light-brown" />
           </div>
           <div
-            className="flex-1 overflow-x-auto bg-earth-50 rounded-lg border border-earth-200 p-4 min-h-[60px] cursor-pointer hover:bg-earth-100 transition"
+            className="flex-1 overflow-x-auto bg-white rounded-xl border border-earth-200 p-6 min-h-[60px] cursor-pointer hover:bg-earth-50/30 transition-colors shadow-sm"
             onClick={() => onEdit && onEdit(section.id)}
             title="Click to edit table"
           >
             {content && content.rows && content.rows.length > 0 ? (
-              <table className="min-w-[200px] border border-earth-200 text-sm w-full">
+              <table className="min-w-[200px] border-collapse text-sm w-full">
                 <tbody>
-                  {content.rows.map((row, i) => (
-                    <tr key={i}>
-                      {row.map((cell, j) => (
-                        <td key={j} className={`border border-earth-200 px-2 py-1 ${i === 0 && content.hasHeader ? 'font-semibold bg-earth-100' : ''}`}>{cell}</td>
-                      ))}
-                    </tr>
-                  ))}
+                  {content.rows.map((row, i) => {
+                    const isHeader = (content.headerRows && content.headerRows.includes(i)) || 
+                                   (content.hasHeader && i === 0); // Backward compatibility
+                    return (
+                      <tr key={i} className={isHeader ? '' : (i % 2 === 0 ? 'bg-white' : 'bg-earth-50/20')}>
+                        {row.map((cell, j) => (
+                          <td 
+                            key={j} 
+                            className={`border border-earth-200/60 px-4 py-3 ${
+                              isHeader
+                                ? 'font-semibold bg-earth-200/60 text-earth-900' 
+                                : 'text-earth-700'
+                            }`}
+                          >
+                            {cell}
+                          </td>
+                        ))}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             ) : (
@@ -710,20 +739,35 @@ export default function SortableSection({
     setContent(section.content ?? '');
   }, [section.content]);
 
+  // Sync heading style states with section properties when section changes
+  React.useEffect(() => {
+    setHeadingColor(section.headingColor || '#000000');
+    setHeadingBold(!!section.headingBold);
+    setHeadingItalic(!!section.headingItalic);
+    setHeadingUnderline(!!section.headingUnderline);
+    setHeadingFont(section.headingFont || '');
+  }, [section.headingColor, section.headingBold, section.headingItalic, section.headingUnderline, section.headingFont]);
+
   return (
     <div
       ref={setNodeRef}
       style={style}
       className={cn(
-        'bg-white bg-opacity-90 rounded-xl shadow-sm mb-4',
-        section.type === 'heading'    && 'border-2 border-light-brown/20',
-        section.type === 'subheading' && 'border border-light-brown/10',
+        'bg-white bg-opacity-90 rounded-xl shadow-sm mb-6',
+        section.id === 'welcome-heading' && 'border-2 border-light-brown/40 shadow-lg bg-gradient-to-r from-pale-beige/30 to-white',
+        section.type === 'heading' && section.id !== 'welcome-heading' && 'border-2 border-light-brown/30 shadow-md bg-gradient-to-r from-pale-beige/20 to-white',
+        section.type === 'subheading' && 'border border-light-brown/20 shadow-sm bg-gradient-to-r from-pale-beige/10 to-white',
         isDragging && 'opacity-50'
       )}
     >
       {/* — header row — */}
       {(section.type === 'heading' || section.type === 'subheading') && (
-        <div className="p-4 flex items-center justify-between group">
+        <div className={cn(
+          'flex items-center justify-between group',
+          section.id === 'welcome-heading' && 'p-8 pb-5',
+          section.type === 'heading' && section.id !== 'welcome-heading' && 'p-6 pb-4',
+          section.type === 'subheading' && 'p-5 pb-3'
+        )}>
           <div className="flex items-center gap-2 flex-1">
             <div
               {...attributes}
@@ -744,10 +788,11 @@ export default function SortableSection({
             {!isEditing ? (
               <div
                 className={cn(
-                  'flex-1 truncate transition-colors flex items-center',
-                  section.type === 'heading'    && 'text-2xl font-playfair font-bold',
-                  section.type === 'subheading' && 'text-xl font-medium',
-                  'hover:bg-pale-beige/80 rounded px-1 cursor-pointer'
+                  'flex-1 transition-colors flex items-center py-2',
+                  section.type === 'heading'    && '!text-4xl font-playfair font-bold text-earth-800 leading-tight',
+                  section.type === 'subheading' && 'text-2xl font-semibold text-earth-700 leading-snug',
+                  section.id === 'welcome-heading' && 'proibe-top-heading', 
+                  'hover:bg-pale-beige/80 rounded px-2 cursor-pointer'
                 )}
                 style={headingStyle}
                 onClick={() => {
@@ -756,15 +801,16 @@ export default function SortableSection({
                   setHeadingBold(!!section.headingBold);
                   setHeadingItalic(!!section.headingItalic);
                   setHeadingUnderline(!!section.headingUnderline);
+                  setHeadingFont(section.headingFont || '');
                   setIsEditing(true);
                 }}
                 title="Click to edit title"
               >
                 {stripTags(content) || (
-                  <span className="italic text-earth-400">
+                  <span className="italic text-earth-400 font-normal">
                     {section.type === 'heading'
-                      ? 'Click to add a heading…'
-                      : 'Click to add a subheading…'}
+                      ? 'Untitled Heading'
+                      : 'Untitled Subheading'}
                   </span>
                 )}
                 <span className="ml-2 opacity-0 group-hover:opacity-80 transition-opacity">
@@ -788,20 +834,26 @@ export default function SortableSection({
                     }
                   }}
                   className={cn(
-                    'w-full bg-pale-beige/80 rounded px-2 py-1 outline-none mb-1',
-                    section.type === 'heading'    && 'text-2xl font-playfair font-bold',
-                    section.type === 'subheading' && 'text-xl font-medium'
+                    'w-full bg-pale-beige/80 rounded px-2 py-2 outline-none mb-1',
+                    section.type === 'heading'    && 'text-4xl font-playfair font-bold leading-tight',
+                    section.type === 'subheading' && 'text-2xl font-semibold leading-snug'
                   )}
                   style={{
                     color: headingColor,
                     fontWeight: headingBold ? 'bold' : undefined,
                     fontStyle: headingItalic ? 'italic' : undefined,
                     textDecoration: headingUnderline ? 'underline' : undefined,
+                    fontFamily: headingFont || undefined,
+                    fontSize: section.type === 'heading' ? '2.25rem' : section.type === 'subheading' ? '1.5rem' : undefined,
+                    lineHeight: section.type === 'heading' ? '2.5rem' : section.type === 'subheading' ? '2rem' : undefined,
+                    wordWrap: 'break-word',
+                    overflowWrap: 'break-word',
+                    whiteSpace: 'pre-wrap',
                   }}
                   placeholder={
                     section.type === 'heading'
-                      ? 'Enter heading…'
-                      : 'Enter subheading…'
+                      ? 'Enter your main heading...'
+                      : 'Enter your subheading...'
                   }
                 />
                 <HeadingStyleToolbar />
@@ -857,8 +909,9 @@ export default function SortableSection({
       {children && isExpanded && !isEditing && (
         <div
           className={cn(
-            'space-y-2 pb-2', // reduce vertical spacing between children
-            section.type === 'heading' && 'px-6',
+            'space-y-3 pb-4',
+            section.type === 'heading' && 'px-6 pt-2',
+            section.type === 'subheading' && 'px-4 pt-1',
           )}
         >
           {children}

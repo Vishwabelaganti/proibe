@@ -66,8 +66,8 @@ export default function LofiMixer({ className = 'fixed bottom-6 right-6' }) {
 
   return (
     <motion.div
-      className={`${className} group z-50`} // Add z-50 for high stacking context
-      style={{ position: 'fixed' }} // Ensure fixed positioning if not already
+      className={`${className} group z-50`}
+      style={{ position: 'fixed', bottom: '24px', right: '24px' }} // Ensure explicit positioning
       initial={{ opacity: 0, scale: 0 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ type: 'spring', stiffness: 220, damping: 20 }}

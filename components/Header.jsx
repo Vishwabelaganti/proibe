@@ -31,7 +31,7 @@ export default function Header({ headerBg, setHeaderBg }) {
 
   return (
     <header
-      className="relative overflow-hidden bg-earth-200 border-b border-accent/40 min-h-[180px] flex items-end group"
+      className="relative overflow-hidden bg-earth-200 border-b border-accent/40 h-[160px] flex items-end group print:h-auto print:min-h-0 print:border-none"
       style={headerBg ? { backgroundImage: `url(${headerBg})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}
     >
       {/* Overlay for readability */}
@@ -68,7 +68,7 @@ export default function Header({ headerBg, setHeaderBg }) {
       </div>
 
       <motion.div
-        className="relative z-20 flex items-center justify-between px-10 py-6 w-full"
+        className="relative z-20 flex items-center justify-between px-6 py-4 w-full"
         variants={container}
         initial="hidden"
         animate="show"

@@ -1,6 +1,8 @@
+const isProd = process.env.NODE_ENV === 'production';
+
 module.exports = {
-  assetPrefix: '/proibe/',
-  basePath: '/proibe',
+  assetPrefix: isProd ? '/proibe/' : '',
+  basePath: isProd ? '/proibe' : '',
   trailingSlash: true,
-  output: 'export',
+  output: isProd ? 'export' : undefined,
 };

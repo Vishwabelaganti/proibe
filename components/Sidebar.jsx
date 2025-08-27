@@ -2,8 +2,6 @@ import React from 'react';
 import {
   Plus,
   Heading1,
-  Heading2,
-  AlignLeft,
   Trash2,
   ChevronDown,
   ChevronRight,
@@ -24,9 +22,11 @@ import { cn } from '../utils/cn';          // helper to join classes
 
 function EmptyStateMessage() {
   return (
-    <div className="text-center p-4 text-earth-700">
-      <Plus className="mx-auto mb-2 h-8 w-8" />
-      <p className="text-sm">Add your first section</p>
+    <div className="text-center py-12">
+      <div className="text-earth-500 text-sm mb-2">No sections yet</div>
+      <div className="text-earth-400 text-xs">
+        Add your first heading or note above
+      </div>
     </div>
   );
 }
@@ -56,32 +56,29 @@ export default function Sidebar() {
     }
     function handleDragEnd(event) {
     const { active, over } = event;
-    if (!active?.id || !over?.id) return;
+    if (!active || !over || active.id === over.id) return;
 
     const dragged = sections.find((s) => s.id === active.id);
     const target  = sections.find((s) => s.id === over.id);
+
     if (!dragged || !target) return;
-    if (
-      target.type === 'heading' &&
-      ['subheading', 'text'].includes(dragged.type)
-    ) {
+
+    // Drag onto heading → become its child
+    if (target.type === 'heading' && ['subheading','text','table','image','icon','banner'].includes(dragged.type)) {
       updateSection(dragged.id, { parent: target.id });
-    }
-    else if (dragged.parent === target.parent) {
-      // same‐parent ⇒ just reorder
-      if (dragged.id !== target.id) {
-        reorderSections(dragged.id, target.id);
-      }
-    }
-    else {
-      // different parent but same level target ⇒ move into its parent and reorder
-      updateSection(dragged.id, { parent: target.parent });
-      reorderSections(dragged.id, target.id);
+      return;
     }
 
-    // close any parents we auto-opened
-    Array.from(new Set(openedDuringDrag)).forEach(toggleCollapse);
-    setOpenedDuringDrag([]);
+    // Drag onto subheading → become its child
+    if (target.type === 'subheading' && ['text','table','image','icon','banner'].includes(dragged.type)) {
+      updateSection(dragged.id, { parent: target.id });
+      return;
+    }
+
+    // Same-parent reorder
+    if (dragged.parent === target.parent) {
+      reorderSections(dragged.id, target.id);
+    }
   }
 
     function handleDragStart(event) {
@@ -116,10 +113,6 @@ export default function Sidebar() {
     switch (type) {
       case 'heading':
         return <Heading1 className="h-4 w-4 text-earth-700" />;
-      case 'subheading':
-        return <Heading2 className="h-4 w-4 text-earth-700" />;
-      case 'text':
-        return <AlignLeft className="h-4 w-4 text-earth-700" />;
       case 'table':
         return <Table className="h-4 w-4 text-earth-700" />;
       case 'image':
@@ -174,23 +167,6 @@ function SortableRow({ id, children }) {
             /* ---------- add blocks ---------- */
             if (mod && !shft && !alt && e.key.toLowerCase() === 'h') {
             addSection('heading');                  // Cmd/Ctrl + H
-            return e.preventDefault();
-            }
-            if (mod && shft && !alt && e.key.toLowerCase() === 'h') {
-            // inside selected heading if possible
-            const parent = activeSection
-                ? sections.find((s) => s.id === activeSection)
-                : null;
-            if (parent?.type === 'heading' && parent.collapsed) toggleCollapse(parent.id);
-            addSection('subheading', parent?.type === 'heading' ? parent.id : null);
-            return e.preventDefault();
-            }
-            if (mod && !shft && !alt && e.key.toLowerCase() === 't') {
-            const parent = activeSection
-                ? sections.find((s) => s.id === activeSection)
-                : null;
-            if (parent?.collapsed) toggleCollapse(parent.id);
-            addSection('text', parent?.id ?? null);
             return e.preventDefault();
             }
 
@@ -281,18 +257,12 @@ function SortableRow({ id, children }) {
         }
 
         function addSiblingBelow(type) {
-        const cur  = sections.find((s) => s.id === activeSection);
-        if (!cur) return;
-        addSection(type, cur.parent);                // append to same parent
-        // then move it right after current
-        const sibs  = siblingsOf(activeSection);
-        const added = sibs[sibs.length - 1];         // newly appended
-        reorderSections(added.id, activeSection);    // swap once to move below
+        addSection(type, sections.find((s) => s.id === activeSection)?.parent);
         }
 // Removed unused wrapperIndent variable
  /* ---------- one row + its (optional) children ---------- */
 const renderSection = (section, depth = 0, inPinned = false) => {
-  // don’t render pinned items twice
+  // don't render pinned items twice
   if (!inPinned && depth === 0 && section.pinned) return null;
 // inside renderSection(...)
 const INDENT = 16;  // px per nesting level
@@ -430,34 +400,6 @@ const wrapperIndent = baseIndent + depth * indentUnit;
               />
             </button>
 
-            {/* add subheading/text */}
-            {allowedChildTypes(section.type).includes("subheading") && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (section.collapsed) toggleCollapse(section.id);
-                  addSection("subheading", section.id);
-                }}
-                className="p-1 rounded bg-accent/40 hover:bg-accent/60 pointer-events-auto"
-                title="Add subheading"
-              >
-                <Heading2 size={14} />
-              </button>
-            )}
-            {allowedChildTypes(section.type).includes("text") && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (section.collapsed) toggleCollapse(section.id);
-                  addSection("text", section.id);
-                }}
-                className="p-1 rounded bg-accent/40 hover:bg-accent/60 pointer-events-auto"
-                title="Add text"
-              >
-                <AlignLeft size={14} />
-              </button>
-            )}
-
             {/* delete */}
             <button
               onClick={(e) => {
@@ -522,7 +464,7 @@ const wrapperIndent = baseIndent + depth * indentUnit;
         </h2>
 
         <div className="flex gap-2 mt-1">
-          {/* H1 */}
+          {/* H1 - Primary section creator */}
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
@@ -531,48 +473,6 @@ const wrapperIndent = baseIndent + depth * indentUnit;
             title="Add heading"
           >
             <Heading1 size={14} />
-          </motion.button>
-
-          {/* H2 */}
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="w-8 h-8 rounded-md bg-accent/40 hover:bg-accent/60 inline-flex items-center justify-center shadow-sm transition duration-150"
-            onClick={() => {
-              const parent = activeSection
-                ? sections.find((s) => s.id === activeSection)
-                : null;
-              if (parent?.type === 'heading') {
-                if (parent.collapsed) toggleCollapse(parent.id);
-                addSection('subheading', parent.id);
-              } else {
-                addSection('subheading');
-              }
-            }}
-            title="Add subheading"
-          >
-            <Heading2 size={14} />
-          </motion.button>
-
-          {/* Text */}
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="w-8 h-8 rounded-md bg-accent/40 hover:bg-accent/60 inline-flex items-center justify-center shadow-sm transition duration-150"
-            onClick={() => {
-              const parent = activeSection
-                ? sections.find((s) => s.id === activeSection)
-                : null;
-              if (parent && (parent.type === 'heading' || parent.type === 'subheading')) {
-                if (parent.collapsed) toggleCollapse(parent.id);
-                addSection('text', parent.id);
-              } else {
-                addSection('text');
-              }
-            }}
-            title="Add text"
-          >
-            <AlignLeft size={14} />
           </motion.button>
         </div>
       </div>
@@ -588,7 +488,7 @@ const wrapperIndent = baseIndent + depth * indentUnit;
 
         {pinnedSections.map((sec) => (
           <SortableRow key={sec.id} id={sec.id}>
-            {renderSection(sec, 0, true)}   {/* ← tell it we’re in Pinned */}
+            {renderSection(sec, 0, true)}   {/* ← tell it we're in Pinned */}
           </SortableRow>
         ))}
 
