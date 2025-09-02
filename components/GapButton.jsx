@@ -1,6 +1,6 @@
 // components/GapButton.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Type, Heading1, Heading2, CheckSquare, Code, Quote, Image, Table, Smile, Flag } from 'lucide-react';
+import { Plus, Type, Heading1, Heading2, CheckSquare, Code, Quote, Image, Table, Smile, Flag, SplitSquareVertical } from 'lucide-react';
 import { useNotes } from '../context/NotesContext';
 
 export default function GapButton({ parentId, beforeId = null }) {
@@ -102,6 +102,7 @@ export default function GapButton({ parentId, beforeId = null }) {
     { type: 'image', icon: Image, label: 'Image', description: 'Add an image from URL' },
     { type: 'icon', icon: Smile, label: 'Icon Block', description: 'Add an icon with text' },
     { type: 'banner', icon: Flag, label: 'Banner', description: 'Create a colorful banner' },
+    { type: 'frame', icon: SplitSquareVertical, label: 'Split Frame', description: 'Create a two-panel layout' },
   ];
 
   const handleAddBlock = (type) => {

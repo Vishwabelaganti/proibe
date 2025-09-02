@@ -129,7 +129,7 @@ export default function TableEditor({ content, onChange, onSave, onCancel }) {
                 {row.map((cell, colIndex) => (
                   <td key={colIndex} className="border border-earth-200 p-2 relative group/cell">
                     {isHeaderRow(rowIndex) ? (
-                      <div className="relative group/header">
+                      <div className="relative">
                         <input
                           type="text"
                           value={cell}
@@ -137,14 +137,6 @@ export default function TableEditor({ content, onChange, onSave, onCancel }) {
                           className="w-full bg-earth-200/50 font-semibold text-earth-900 focus:outline-none focus:bg-white focus:ring-2 focus:ring-accent/30 rounded px-2 py-1 transition-colors"
                           placeholder="Header"
                         />
-                        {/* Column delete button */}
-                        <button
-                          onClick={() => removeColumn(colIndex)}
-                          className="absolute -top-1 -right-1 opacity-0 group-hover/header:opacity-100 transition-opacity p-1 bg-red-100 hover:bg-red-200 rounded-full text-red-600 shadow-sm"
-                          title="Remove column"
-                        >
-                          <Minus size={10} />
-                        </button>
                       </div>
                     ) : (
                       <input
@@ -154,6 +146,16 @@ export default function TableEditor({ content, onChange, onSave, onCancel }) {
                         className="w-full bg-transparent text-earth-700 focus:outline-none focus:bg-white focus:ring-2 focus:ring-accent/30 rounded px-2 py-1 transition-colors"
                         placeholder="Enter content..."
                       />
+                    )}
+                    {/* Column delete button - show only on first row */}
+                    {rowIndex === 0 && (
+                      <button
+                        onClick={() => removeColumn(colIndex)}
+                        className="absolute -top-1 -right-1 opacity-0 group-hover/cell:opacity-100 transition-opacity p-1 bg-red-100 hover:bg-red-200 rounded-full text-red-600 shadow-sm z-10"
+                        title="Remove column"
+                      >
+                        <Minus size={10} />
+                      </button>
                     )}
                   </td>
                 ))}

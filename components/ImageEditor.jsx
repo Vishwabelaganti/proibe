@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Save, X, Upload, Link, Image as ImageIcon } from 'lucide-react';
 
 export default function ImageEditor({ content, onChange, onSave, onCancel }) {
@@ -16,6 +16,15 @@ export default function ImageEditor({ content, onChange, onSave, onCancel }) {
   });
 
   const [inputMethod, setInputMethod] = useState('url');
+  const [dragOver, setDragOver] = useState(false);
+  const [pastedImageData, setPastedImageData] = useState('');
+
+  // Sync imageData when content prop changes
+  useEffect(() => {
+    if (content && typeof content === 'object' && content.url !== undefined) {
+      setImageData(content);
+    }
+  }, [content]);
 
   const updateImageData = (updates) => {
     const newData = { ...imageData, ...updates };
@@ -23,14 +32,82 @@ export default function ImageEditor({ content, onChange, onSave, onCancel }) {
     onChange && onChange(newData);
   };
 
-  const handleFileUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
+  const handleFileUpload = (file) => {
+    if (file && file.type.startsWith('image/')) {
+      // Validate file size (max 2MB)
+      if (file.size > 2 * 1024 * 1024) {
+        alert('File size must be less than 2MB for optimal performance');
+        return;
+      }
+      
       const reader = new FileReader();
       reader.onload = (event) => {
-        updateImageData({ url: event.target.result });
+        const result = event.target.result;
+        if (result && typeof result === 'string' && result.startsWith('data:image/')) {
+          updateImageData({ 
+            url: result, 
+            alt: file.name.replace(/\.[^/.]+$/, "")
+          });
+        } else {
+          alert('Failed to process image. Please try a different file.');
+        }
       };
+      
+      reader.onerror = () => {
+        alert('Failed to read file. Please try again.');
+      };
+      
       reader.readAsDataURL(file);
+    } else {
+      alert('Please select a valid image file (PNG, JPEG, GIF, etc.).');
+    }
+  };
+
+  const handleFileInputChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      handleFileUpload(file);
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(false);
+    
+    const files = Array.from(e.dataTransfer.files);
+    const imageFile = files.find(file => file.type.startsWith('image/'));
+    if (imageFile) {
+      handleFileUpload(imageFile);
+    } else if (files.length > 0) {
+      alert('Please drop an image file.');
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Only hide if leaving the drop zone completely
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+      setDragOver(false);
+    }
+  };
+
+  const handlePaste = (e) => {
+    const items = Array.from(e.clipboardData.items);
+    const imageItem = items.find(item => item.type.startsWith('image/'));
+    if (imageItem) {
+      e.preventDefault();
+      const file = imageItem.getAsFile();
+      if (file) {
+        handleFileUpload(file);
+      }
     }
   };
 
@@ -42,7 +119,14 @@ export default function ImageEditor({ content, onChange, onSave, onCancel }) {
   ];
 
   return (
-    <div className="bg-white rounded-lg border border-earth-200 p-4">
+    <div 
+      className="bg-white rounded-lg border border-earth-200 p-4"
+      onDrop={handleDrop}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onPaste={handlePaste}
+      tabIndex={0}
+    >
       <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
         <ImageIcon size={20} />
         Add Image
@@ -73,6 +157,16 @@ export default function ImageEditor({ content, onChange, onSave, onCancel }) {
           Upload
         </button>
         <button
+          onClick={() => setInputMethod('paste')}
+          className={`px-3 py-2 rounded text-sm ${
+            inputMethod === 'paste' 
+              ? 'bg-accent text-white' 
+              : 'bg-earth-100 hover:bg-earth-200'
+          }`}
+        >
+          📋 Paste
+        </button>
+        <button
           onClick={() => setInputMethod('sample')}
           className={`px-3 py-2 rounded text-sm ${
             inputMethod === 'sample' 
@@ -99,12 +193,52 @@ export default function ImageEditor({ content, onChange, onSave, onCancel }) {
       )}
       {inputMethod === 'upload' && (
         <div className="mb-4">
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleFileUpload}
-            className="w-full"
+          <div 
+            className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+              dragOver 
+                ? 'border-accent bg-accent/5' 
+                : 'border-earth-300 hover:border-accent'
+            }`}
+          >
+            <Upload size={32} className="mx-auto mb-4 text-earth-400" />
+            <p className="text-earth-600 mb-4">
+              Drop an image here, paste from clipboard, or click to browse
+            </p>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleFileInputChange}
+              className="hidden"
+              id="image-upload"
+            />
+            <label 
+              htmlFor="image-upload"
+              className="px-4 py-2 bg-accent text-white rounded hover:bg-accent/90 cursor-pointer inline-block"
+            >
+              Choose File
+            </label>
+          </div>
+        </div>
+      )}
+      {inputMethod === 'paste' && (
+        <div className="mb-4 space-y-4">
+          <textarea
+            value={pastedImageData}
+            onChange={(e) => setPastedImageData(e.target.value)}
+            placeholder="Paste image URL or data URL here..."
+            className="w-full h-24 px-3 py-2 border border-earth-300 rounded-md resize-none focus:ring-2 focus:ring-accent focus:border-transparent"
           />
+          <button
+            onClick={() => {
+              if (pastedImageData.trim()) {
+                updateImageData({ url: pastedImageData.trim() });
+                setPastedImageData('');
+              }
+            }}
+            className="w-full bg-accent text-white py-2 px-4 rounded-md hover:bg-accent/90"
+          >
+            Load Image
+          </button>
         </div>
       )}
       {inputMethod === 'sample' && (

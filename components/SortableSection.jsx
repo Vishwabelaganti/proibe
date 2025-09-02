@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
@@ -24,6 +24,8 @@ import { useNotes } from '../context/NotesContext';
 import RichTextEditor from './RichTextEditor';
 import TableEditor from './TableEditor';
 import ImageEditor from './ImageEditor';
+import FrameEditor from './FrameEditor';
+import FrameDisplay from './FrameDisplay';
 import IconEditor from './IconEditor';
 import BannerEditor from './BannerEditor';
 
@@ -42,9 +44,25 @@ export default function SortableSection({
   // Use internal editing state for headings/subheadings
   const [isEditing, setIsEditing] = useState(false);
   // Use external editing state for all leaf blocks
-  const isBlockEditing = ['text','table','image','icon','banner'].includes(section.type) ? externalIsEditing : isEditing;
+  const isBlockEditing = ['text','table','image','icon','banner','frame'].includes(section.type) ? externalIsEditing : isEditing;
   const [isExpanded, setIsExpanded] = useState(true);
-  const [content, setContent] = useState(section.content ?? '');
+  
+  // Initialize content based on section type
+  const [content, setContent] = useState(() => {
+    if (section.type === 'image' && typeof section.content === 'object') {
+      return section.content;
+    } else if (section.type === 'image') {
+      return {
+        url: '',
+        alt: '',
+        caption: '',
+        width: 'auto',
+        alignment: 'center'
+      };
+    }
+    return section.content ?? '';
+  });
+  
   const [draftLabel, setDraftLabel] = useState(section.content ?? '');
 
   // --- Heading style state ---
@@ -64,6 +82,23 @@ export default function SortableSection({
   const fontFamilies = defaultFontFamilies;
   // Fix: define headingFont state (was missing)
   const [headingFont, setHeadingFont] = useState(section.headingFont || '');
+
+  // Sync content when section.content changes
+  useEffect(() => {
+    if (section.type === 'image' && typeof section.content === 'object') {
+      setContent(section.content);
+    } else if (section.type === 'image') {
+      setContent({
+        url: '',
+        alt: '',
+        caption: '',
+        width: 'auto',
+        alignment: 'center'
+      });
+    } else {
+      setContent(section.content ?? '');
+    }
+  }, [section.content, section.type]);
 
   // Recommended colors (persist custom colors in localStorage)
   const LOCAL_COLORS_KEY = 'proibe_heading_colors';
@@ -113,8 +148,27 @@ export default function SortableSection({
   };
 
   const handleSave = () => {
-    updateSection(section.id, { content });
-    if (onSave) onSave(section.id, content);
+    // Ensure content is properly saved with validation
+    let validatedContent = content;
+    
+    // For images, validate the URL and ensure proper structure
+    if (section.type === 'image' && content) {
+      validatedContent = {
+        url: content.url || '',
+        alt: content.alt || '',
+        caption: content.caption || '',
+        width: content.width || 'auto',
+        alignment: content.alignment || 'center'
+      };
+    }
+    
+    // For other block types, ensure content is valid
+    if (typeof validatedContent === 'string') {
+      validatedContent = validatedContent.trim();
+    }
+    
+    updateSection(section.id, { content: validatedContent });
+    if (onSave) onSave(section.id, validatedContent);
     setIsEditing(false);
     if (onEdit) onEdit(null);
   };
@@ -564,17 +618,112 @@ export default function SortableSection({
             title="Click to edit image"
           >
             {content && content.url ? (
-              <img
-                src={content.url}
-                alt={content.alt || ''}
-                className={`rounded shadow-sm ${content.width === 'small' ? 'w-[300px]' : content.width === 'medium' ? 'w-[500px]' : content.width === 'large' ? 'w-[700px]' : content.width === 'full' ? 'w-full' : 'max-w-full h-auto'}`}
-                style={{ maxHeight: '220px', objectFit: 'cover', display: 'block', margin: '0 auto' }}
-              />
+              <div className="w-full">
+                <img
+                  src={content.url}
+                  alt={content.alt || 'Image'}
+                  className={`rounded shadow-sm mx-auto ${content.width === 'small' ? 'w-[300px]' : content.width === 'medium' ? 'w-[500px]' : content.width === 'large' ? 'w-[700px]' : content.width === 'full' ? 'w-full' : 'max-w-full h-auto'}`}
+                  style={{ maxHeight: '220px', objectFit: 'cover', display: 'block', margin: '0 auto' }}
+                  onLoad={(e) => {
+                    // Image loaded successfully
+                    const errorDiv = e.target.parentNode.querySelector('.image-error');
+                    if (errorDiv) errorDiv.style.display = 'none';
+                  }}
+                  onError={(e) => {
+                    console.error('Image failed to load');
+                    e.target.style.display = 'none';
+                    const errorDiv = e.target.parentNode.querySelector('.image-error');
+                    if (errorDiv) errorDiv.style.display = 'block';
+                  }}
+                />
+                <div className="image-error text-red-500 text-sm text-center py-4" style={{ display: 'none' }}>
+                  ⚠️ Image failed to load. Click to edit and try a different URL.
+                </div>
+                {content.caption && (
+                  <div className="text-xs text-earth-600 mt-2 text-center">{content.caption}</div>
+                )}
+              </div>
             ) : (
-              <span className="text-earth-400 italic w-full text-center block">No image selected</span>
+              <div className="text-earth-400 italic w-full text-center block py-8">
+                <div className="text-2xl mb-2">📷</div>
+                No image selected
+              </div>
             )}
-            {content && content.caption && (
-              <div className="text-xs text-earth-600 mt-2 text-center">{content.caption}</div>
+          </div>
+          {/* Trash button is now correctly positioned inside the block */}
+          <button
+            onClick={() => deleteSection(section.id)}
+            className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-full hover:bg-red-100 text-red-500 z-10"
+            title="Delete"
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
+      );
+    }
+  }
+
+  // Render frame section
+  if (section.type === 'frame') {
+    if (isBlockEditing) {
+      return (
+        <div ref={setNodeRef} className="flex items-start group relative" style={{ paddingLeft: 0, paddingRight: 0, marginTop: section.parent ? '18px' : '0', marginBottom: '2px' }}>
+          <div
+            {...attributes}
+            {...listeners}
+            className="ml-2 mt-2 opacity-0 group-hover:opacity-100 cursor-grab transition-opacity"
+            style={{ minWidth: 20 }}
+            title="Drag"
+          >
+            <GripVertical className="text-light-brown" />
+          </div>
+          <div className="flex-1 bg-white rounded-xl shadow-sm border border-light-brown/10 p-2 ml-1">
+            <FrameEditor
+              content={content}
+              onChange={setContent}
+              onSave={handleSave}
+              onCancel={() => onEdit && onEdit(null)}
+            />
+          </div>
+          {/* Trash button is now correctly positioned inside the block */}
+          <button
+            onClick={() => deleteSection(section.id)}
+            className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-full hover:bg-red-100 text-red-500 z-10"
+            title="Delete"
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
+      );
+    } else {
+      // Frame preview
+      return (
+        <div
+          ref={setNodeRef}
+          className="flex items-start group relative"
+          style={{ paddingLeft: 0, paddingRight: 0, marginTop: section.parent ? '18px' : '0', marginBottom: '2px' }}
+        >
+          <div
+            {...attributes}
+            {...listeners}
+            className="ml-2 mt-2 opacity-0 group-hover:opacity-100 cursor-grab transition-opacity"
+            style={{ minWidth: 20 }}
+            title="Drag"
+          >
+            <GripVertical className="text-light-brown" />
+          </div>
+          <div
+            className="flex-1 cursor-pointer"
+            onClick={() => onEdit && onEdit(section.id)}
+            title="Click to edit frame"
+          >
+            {content && content.leftContent && content.rightContent ? (
+              <FrameDisplay content={content} />
+            ) : (
+              <div className="flex flex-col items-center justify-center bg-earth-50 rounded-lg border border-earth-200 p-8 min-h-[200px] hover:bg-earth-100 transition">
+                <div className="text-3xl mb-2">🖼️</div>
+                <span className="text-earth-400 italic">Empty frame - click to add content</span>
+              </div>
             )}
           </div>
           {/* Trash button is now correctly positioned inside the block */}

@@ -8,6 +8,7 @@ import {
   ListOrdered,
   Quote,
   Code,
+  SplitSquareVertical,
   Indent,
   Outdent,
 } from 'lucide-react';
@@ -47,10 +48,12 @@ export default function RichTextEditor({ content, onChange, type = 'text' }) {
   const handleEditorKeydown = (e) => {
     const target = e.target;
     
+    // Always stop propagation to prevent sidebar navigation
+    e.stopPropagation();
+    
     // Handle Tab key for indentation
     if (e.key === 'Tab') {
       e.preventDefault();
-      e.stopPropagation();
       
       const selection = window.getSelection();
       if (selection.rangeCount > 0) {
@@ -90,26 +93,102 @@ export default function RichTextEditor({ content, onChange, type = 'text' }) {
       return;
     }
     
-    // Check if we're in any interactive element that should handle its own Enter key
-    const isInCode = target && (target.tagName === 'CODE' || target.closest('code'));
-    const isInQuote = target && (target.tagName === 'P' && target.closest('blockquote'));
-    const isInInteractiveElement = isInCode || isInQuote;
-    
-    // Always stop propagation for any key event in interactive elements
-    if (isInInteractiveElement) {
-      e.stopPropagation();
+    // Handle Enter key
+    if (e.key === 'Enter') {
+      e.preventDefault();
       
-      // For code blocks and quotes, let the default Enter behavior work but prevent bubbling
-      if (e.key === 'Enter' && (isInCode || isInQuote)) {
-        // Don't prevent default - let Enter work normally in these elements
-        // Just prevent bubbling to parent
+      const selection = window.getSelection();
+      if (!selection.rangeCount) return;
+      
+      const range = selection.getRangeAt(0);
+      
+      // Check if we're in special elements
+      const isInCode = target && (target.tagName === 'CODE' || target.closest('code'));
+      const isInQuote = target && target.closest('blockquote');
+      
+      if (isInCode) {
+        // In code blocks, insert newline character
+        document.execCommand('insertText', false, '\n');
+      } else {
+        // In regular text, insert line break
+        document.execCommand('insertLineBreak', false, null);
       }
+      
+      handleInput();
+      return;
+    }
+    
+    // Handle Backspace key
+    if (e.key === 'Backspace') {
+      const selection = window.getSelection();
+      if (!selection.rangeCount) return;
+      
+      const range = selection.getRangeAt(0);
+      
+      // If there's a text selection, let default behavior handle it
+      if (!range.collapsed) {
+        setTimeout(() => handleInput(), 0);
+        return;
+      }
+      
+      // Check if we're at the very start of the editor
+      const editor = editorRef.current;
+      if (range.startContainer === editor && range.startOffset === 0) {
+        e.preventDefault(); // Don't delete if we're at the very beginning
+        return;
+      }
+      
+      // Check if we're at start of a text node after a BR
+      if (range.startContainer.nodeType === Node.TEXT_NODE && range.startOffset === 0) {
+        const textNode = range.startContainer;
+        const prevSibling = textNode.previousSibling;
+        
+        if (prevSibling && prevSibling.tagName === 'BR') {
+          e.preventDefault();
+          // Remove the BR and merge with previous line
+          prevSibling.remove();
+          // Position cursor at start of current text node
+          range.setStart(textNode, 0);
+          range.collapse(true);
+          selection.removeAllRanges();
+          selection.addRange(range);
+          handleInput();
+          return;
+        }
+      }
+      
+      // For all other cases, use default backspace behavior
+      setTimeout(() => handleInput(), 0);
+      return;
     }
   };
 
   const handleInput = () => {
     if (editorRef.current) {
       onChange(editorRef.current.innerHTML);
+      
+      // Maintain consistent formatting by preserving current settings
+      const selection = window.getSelection();
+      if (selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        const container = range.commonAncestorContainer;
+        
+        // If we're in a styled container, maintain the formatting
+        if (container.nodeType === Node.ELEMENT_NODE || container.parentElement) {
+          const element = container.nodeType === Node.ELEMENT_NODE ? container : container.parentElement;
+          
+          // Apply current font settings to new content
+          if (fontFamily) {
+            element.style.fontFamily = fontFamily;
+          }
+          if (fontSize) {
+            element.style.fontSize = fontSize;
+          }
+          if (color) {
+            element.style.color = color;
+          }
+        }
+      }
     }
   };
 
@@ -123,6 +202,20 @@ export default function RichTextEditor({ content, onChange, type = 'text' }) {
   const execCommand = (command, value = null) => {
     document.execCommand(command, false, value);
     editorRef.current?.focus();
+    
+    // Ensure formatting is applied consistently
+    const selection = window.getSelection();
+    if (selection.rangeCount > 0 && command === 'fontName') {
+      setFontFamily(value);
+    } else if (command === 'fontSize') {
+      const sizeValue = FONT_SIZES[value - 1]?.value;
+      if (sizeValue) {
+        setFontSize(sizeValue);
+      }
+    } else if (command === 'foreColor') {
+      setColor(value);
+    }
+    
     handleInput();
   };
 
@@ -130,23 +223,62 @@ export default function RichTextEditor({ content, onChange, type = 'text' }) {
     const selection = window.getSelection();
     if (selection.rangeCount > 0) {
       const range = selection.getRangeAt(0);
-      range.deleteContents();
-      const div = document.createElement('div');
-      div.innerHTML = html;
-      const fragment = document.createDocumentFragment();
-      while (div.firstChild) {
-        fragment.appendChild(div.firstChild);
+      
+      // Ensure we have a clean insertion point
+      const editor = editorRef.current;
+      if (!editor.contains(range.commonAncestorContainer)) {
+        // If selection is outside editor, place at end
+        range.selectNodeContents(editor);
+        range.collapse(false);
       }
-      range.insertNode(fragment);
-      selection.removeAllRanges();
+      
+      // Clear the range
+      range.deleteContents();
+      
+      // Create element from HTML
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = html.trim();
+      
+      // Insert each element
+      const elements = Array.from(tempDiv.children);
+      let lastElement = null;
+      
+      elements.forEach(element => {
+        range.insertNode(element);
+        range.setEndAfter(element);
+        lastElement = element;
+      });
+      
+      if (lastElement) {
+        // Position cursor after the inserted content
+        range.setStartAfter(lastElement);
+        range.collapse(true);
+        
+        // Focus the editable element within the inserted content if it exists
+        const editableElement = lastElement.querySelector('[contenteditable="true"]');
+        if (editableElement) {
+          setTimeout(() => {
+            editableElement.focus();
+            const newRange = document.createRange();
+            newRange.selectNodeContents(editableElement);
+            newRange.collapse(true);
+            const newSelection = window.getSelection();
+            newSelection.removeAllRanges();
+            newSelection.addRange(newRange);
+          }, 0);
+        } else {
+          selection.removeAllRanges();
+          selection.addRange(range);
+        }
+      }
     }
     handleInput();
   };
 
   const insertCodeBlock = () => {
     const codeHTML = `
-      <pre class="bg-earth-100 rounded-lg p-4 my-4 overflow-x-auto" style="white-space: pre-wrap; word-wrap: break-word; overflow-wrap: anywhere; background-color: #2d3748; border-radius: 8px; padding: 16px;">
-        <code contenteditable="true" class="text-earth-800 font-mono text-sm" onkeydown="event.stopPropagation()" style="white-space: pre-wrap; word-wrap: break-word; color: #ffffff;">// Your code here</code>
+      <pre class="bg-earth-100 rounded-lg p-4 my-2 overflow-x-auto" style="white-space: pre-wrap; word-wrap: break-word; overflow-wrap: anywhere; background-color: #2d3748; border-radius: 8px; padding: 16px; margin: 8px 0;">
+        <code contenteditable="true" class="text-earth-800 font-mono text-sm" onkeydown="event.stopPropagation()" style="white-space: pre-wrap; word-wrap: break-word; color: #ffffff; background: transparent; font-family: 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', monospace;">// Your code here</code>
       </pre>
     `;
     insertHTML(codeHTML);
@@ -154,8 +286,8 @@ export default function RichTextEditor({ content, onChange, type = 'text' }) {
 
   const insertQuote = () => {
     const quoteHTML = `
-      <blockquote class="border-l-4 border-accent pl-4 my-4 italic text-earth-600">
-        <p contenteditable="true" onkeydown="event.stopPropagation()">Your quote here...</p>
+      <blockquote class="border-l-4 border-accent pl-4 my-1 italic text-earth-600" style="margin: 4px 0; padding: 4px 0 4px 12px; border-left: 4px solid #8A6F53; font-style: italic; color: #6b5b47;">
+        <p contenteditable="true" onkeydown="event.stopPropagation()" style="margin: 0; padding: 0; font-style: italic; line-height: 1.4;">Your quote here...</p>
       </blockquote>
     `;
     insertHTML(quoteHTML);
@@ -231,7 +363,27 @@ export default function RichTextEditor({ content, onChange, type = 'text' }) {
         {/* Font family */}
         <select
           value={fontFamily}
-          onChange={e => { setFontFamily(e.target.value); execCommand('fontName', e.target.value); }}
+          onChange={e => { 
+            const newFont = e.target.value;
+            setFontFamily(newFont); 
+            execCommand('fontName', newFont);
+            // Apply to current selection
+            const selection = window.getSelection();
+            if (selection.rangeCount > 0) {
+              const range = selection.getRangeAt(0);
+              if (!range.collapsed) {
+                // Apply to selected text
+                const span = document.createElement('span');
+                span.style.fontFamily = newFont;
+                try {
+                  range.surroundContents(span);
+                } catch (e) {
+                  // Fallback if range spans multiple elements
+                  execCommand('fontName', newFont);
+                }
+              }
+            }
+          }}
           className="rounded px-2 py-1 border border-earth-200 text-xs focus:outline-accent"
           title="Font family"
         >
@@ -242,7 +394,26 @@ export default function RichTextEditor({ content, onChange, type = 'text' }) {
         {/* Font size */}
         <select
           value={fontSize}
-          onChange={e => { setFontSize(e.target.value); execCommand('fontSize', FONT_SIZES.findIndex(s => s.value === e.target.value) + 1); }}
+          onChange={e => { 
+            const newSize = e.target.value;
+            setFontSize(newSize); 
+            const sizeIndex = FONT_SIZES.findIndex(s => s.value === newSize) + 1;
+            execCommand('fontSize', sizeIndex);
+            // Apply inline style for better consistency
+            const selection = window.getSelection();
+            if (selection.rangeCount > 0) {
+              const range = selection.getRangeAt(0);
+              if (!range.collapsed) {
+                const span = document.createElement('span');
+                span.style.fontSize = newSize;
+                try {
+                  range.surroundContents(span);
+                } catch (e) {
+                  execCommand('fontSize', sizeIndex);
+                }
+              }
+            }
+          }}
           className="rounded px-2 py-1 border border-earth-200 text-xs focus:outline-accent"
           title="Font size"
         >
@@ -284,8 +455,7 @@ export default function RichTextEditor({ content, onChange, type = 'text' }) {
           fontFamily: fontFamily, 
           color: color,
           wordWrap: 'break-word',
-          overflowWrap: 'anywhere',
-          whiteSpace: 'pre-wrap',
+          overflowWrap: 'break-word',
         }}
         placeholder="Start typing..."
       />

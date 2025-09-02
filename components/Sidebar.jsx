@@ -156,9 +156,10 @@ function SortableRow({ id, children }) {
 
     React.useEffect(() => {
         function onKey(e) {
-            // ignore if typing inside inputs/textareas
+            // ignore if typing inside inputs/textareas/contenteditable
             const tag = document.activeElement.tagName;
-            if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+            const isContentEditable = document.activeElement.contentEditable === 'true';
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || isContentEditable) return;
 
             const mod  = e.metaKey || e.ctrlKey;      // Cmd ⌘  on mac, Ctrl on win/linux
             const alt  = e.altKey;                    // ⌥ / Alt

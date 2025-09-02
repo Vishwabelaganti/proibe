@@ -12,36 +12,65 @@ export function useNotes() {
 }
 
 export function NotesProvider({ children }) {
-  const [sections, setSections] = useState([
-    {
-      id: 'welcome-heading',
-      type: 'heading',
-      content: 'Welcome to Proibe Notes',
-      parent: null,
-      order: 0,
-      collapsed: false,
-      pinned: false,
-      headingColor: '#4A3B2F',
-      headingBold: true,
-      headingItalic: false,
-      headingUnderline: false,
-      headingFont: '"Playfair Display", serif',
-    },
-    {
-      id: 'intro-text',
-      type: 'text',
-      content:
-        '<p>Start creating beautiful, organized notes with our Notion-inspired editor. Click on any section to begin editing, or use the sidebar to add new content blocks.</p>',
-      parent: 'welcome-heading',
-      order: 0,
-    },
-  ]);
+  // Initialize sections from localStorage or use defaults
+  const [sections, setSections] = useState(() => {
+    try {
+      const saved = localStorage.getItem('proibe-notes-sections');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Validate the structure
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to load sections from localStorage:', error);
+    }
+    
+    // Return default sections if no valid saved data
+    return [
+      {
+        id: 'welcome-heading',
+        type: 'heading',
+        content: 'Welcome to Proibe Notes',
+        parent: null,
+        order: 0,
+        collapsed: false,
+        pinned: false,
+        headingColor: '#4A3B2F',
+        headingBold: true,
+        headingItalic: false,
+        headingUnderline: false,
+        headingFont: '"Playfair Display", serif',
+      },
+      {
+        id: 'intro-text',
+        type: 'text',
+        content:
+          '<p>Start creating beautiful, organized notes with our Notion-inspired editor. Click on any section to begin editing, or use the sidebar to add new content blocks. effeefe</p>',
+        parent: 'welcome-heading',
+        order: 0,
+      },
+    ];
+  });
 
   const [activeSection, setActiveSection] = useState('welcome-heading');
 
   // Generate unique ID for new sections
   const generateId = useCallback(() => {
     return `section-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  }, []);
+
+  // Helper function to save sections to localStorage
+  const saveToLocalStorage = useCallback((sections) => {
+    try {
+      localStorage.setItem('proibe-notes-sections', JSON.stringify(sections));
+    } catch (error) {
+      console.error('Failed to save sections to localStorage:', error);
+      if (error.name === 'QuotaExceededError') {
+        alert('Storage limit reached. Please remove some images to continue.');
+      }
+    }
   }, []);
 
   // Add a new section
@@ -94,7 +123,7 @@ export function NotesProvider({ children }) {
           updated.push(newSection);
         }
         // Always re-sort siblings by order
-        return updated.map((s) => {
+        const finalUpdated = updated.map((s) => {
           if (s.parent !== parentId) return s;
           // Recompute order for all siblings
           const sibs = updated
@@ -102,10 +131,15 @@ export function NotesProvider({ children }) {
             .sort((a, b) => a.order - b.order);
           return { ...s, order: sibs.findIndex((x) => x.id === s.id) };
         });
+        
+        // Save to localStorage
+        saveToLocalStorage(finalUpdated);
+        
+        return finalUpdated;
       });
       return newSection.id;
     },
-    [sections, generateId]
+    [sections, generateId, saveToLocalStorage]
   );
 
   // Get default content for different section types
@@ -149,6 +183,21 @@ export function NotesProvider({ children }) {
           showIcon: true,
           dismissible: false,
         };
+      case 'frame':
+        return {
+          leftContent: {
+            type: 'text',
+            data: 'Left panel content...'
+          },
+          rightContent: {
+            type: 'text', 
+            data: 'Right panel content...'
+          },
+          splitRatio: 50,
+          borderStyle: 'solid',
+          borderWidth: 1,
+          borderColor: '#e5e7eb'
+        };
       default:
         return '';
     }
@@ -157,11 +206,74 @@ export function NotesProvider({ children }) {
   // Update section properties
   const updateSection = useCallback(
     (id, updates) => {
-      setSections((prev) =>
-        prev.map((s) => (s.id === id ? { ...s, ...updates } : s))
-      );
+      setSections((prev) => {
+        const updated = prev.map((s) => {
+          if (s.id === id) {
+            const newSection = { ...s, ...updates };
+            
+            // Validate and sanitize content based on type
+            if (updates.content !== undefined) {
+              switch (s.type) {
+                case 'image':
+                  // Ensure image content has required structure
+                  if (typeof updates.content === 'object' && updates.content !== null) {
+                    newSection.content = {
+                      url: updates.content.url || '',
+                      alt: updates.content.alt || '',
+                      caption: updates.content.caption || '',
+                      width: updates.content.width || 'auto',
+                      alignment: updates.content.alignment || 'center'
+                    };
+                  }
+                  break;
+                case 'icon':
+                  if (typeof updates.content === 'object' && updates.content !== null) {
+                    newSection.content = {
+                      icon: updates.content.icon || 'Star',
+                      text: updates.content.text || '',
+                      size: updates.content.size || 'medium',
+                      color: updates.content.color || '#C4A484',
+                      layout: updates.content.layout || 'horizontal'
+                    };
+                  }
+                  break;
+                case 'banner':
+                  if (typeof updates.content === 'object' && updates.content !== null) {
+                    newSection.content = {
+                      text: updates.content.text || '',
+                      type: updates.content.type || 'info',
+                      showIcon: updates.content.showIcon !== false,
+                      dismissible: updates.content.dismissible || false
+                    };
+                  }
+                  break;
+                case 'table':
+                  if (typeof updates.content === 'object' && updates.content !== null) {
+                    newSection.content = {
+                      rows: updates.content.rows || [['']],
+                      hasHeader: updates.content.hasHeader || false,
+                      headerRows: updates.content.headerRows || []
+                    };
+                  }
+                  break;
+                default:
+                  // For text and heading types, ensure content is a string
+                  newSection.content = typeof updates.content === 'string' ? updates.content : String(updates.content || '');
+              }
+            }
+            
+            return newSection;
+          }
+          return s;
+        });
+        
+        // Save to localStorage for persistence
+        saveToLocalStorage(updated);
+        
+        return updated;
+      });
     },
-    []
+    [saveToLocalStorage]
   );
 
   // Delete section and its children
@@ -178,11 +290,16 @@ export function NotesProvider({ children }) {
           });
         };
         collectChildren(id);
-        return prev.filter((s) => !toDelete.has(s.id));
+        const updated = prev.filter((s) => !toDelete.has(s.id));
+        
+        // Save to localStorage for persistence
+        saveToLocalStorage(updated);
+        
+        return updated;
       });
       if (activeSection === id) setActiveSection(null);
     },
-    [activeSection]
+    [activeSection, saveToLocalStorage]
   );
 
   // Get child sections of a parent
@@ -210,32 +327,38 @@ export function NotesProvider({ children }) {
           next[draggedIndex].order,
         ];
 
-        return next.sort((a, b) => a.order - b.order);
+        const updated = next.sort((a, b) => a.order - b.order);
+        saveToLocalStorage(updated);
+        return updated;
       });
     },
-    [sections]
+    [sections, saveToLocalStorage]
   );
 
   // Toggle section collapse
   const toggleCollapse = useCallback(
     (id) => {
-      setSections((prev) =>
-        prev.map((s) =>
+      setSections((prev) => {
+        const updated = prev.map((s) =>
           s.id === id ? { ...s, collapsed: !s.collapsed } : s
-        )
-      );
+        );
+        saveToLocalStorage(updated);
+        return updated;
+      });
     },
-    []
+    [saveToLocalStorage]
   );
 
   // Toggle section pin
   const togglePin = useCallback(
     (id) => {
-      setSections((prev) =>
-        prev.map((s) => (s.id === id ? { ...s, pinned: !s.pinned } : s))
-      );
+      setSections((prev) => {
+        const updated = prev.map((s) => (s.id === id ? { ...s, pinned: !s.pinned } : s));
+        saveToLocalStorage(updated);
+        return updated;
+      });
     },
-    []
+    [saveToLocalStorage]
   );
 
   const value = {

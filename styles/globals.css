@@ -225,6 +225,44 @@ h1, h2, h3, h4 { @apply font-serif; }
   border: 1px solid #4a5568 !important;
 }
 
+/* Rich text editor improvements */
+.prose {
+  max-width: none !important;
+}
+
+.prose blockquote {
+  margin: 8px 0 !important;
+  padding: 8px 0 8px 16px !important;
+  border-left: 4px solid #8A6F53 !important;
+  font-style: italic !important;
+}
+
+.prose blockquote p {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.prose pre {
+  background: #2d3748 !important;
+  color: #ffffff !important;
+  border-radius: 8px !important;
+  padding: 16px !important;
+  overflow-x: auto !important;
+}
+
+.prose code {
+  background: #2d3748 !important;
+  color: #ffffff !important;
+  padding: 2px 4px !important;
+  border-radius: 4px !important;
+  font-family: 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', monospace !important;
+}
+
+.prose pre code {
+  background: transparent !important;
+  padding: 0 !important;
+}
+
 .proibe-export-area .rounded-xl {
   border-radius: 16px !important;
 }
