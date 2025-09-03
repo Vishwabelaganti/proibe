@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import FolderCustomizer from './FolderCustomizer';
 import {
   Plus,
   Heading1,
@@ -11,14 +12,72 @@ import {
   Image,
   Smile,
   Flag,
+  Folder,
+  FolderOpen,
+  FolderPlus,
+  Settings,
+  Edit3,
+  Archive,
+  Briefcase,
+  Book,
+  Heart,
+  Zap,
+  Target,
+  Bookmark,
+  Sparkles,
+  Brain
 } from 'lucide-react';
 import { GripVertical } from 'lucide-react';
-import { useSensors, useSensor, PointerSensor, DndContext, rectIntersection } from '@dnd-kit/core';
+import { useSensors, useSensor, PointerSensor, DndContext, rectIntersection, useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 
 import { motion } from 'framer-motion';
 import { useNotes } from '../context/NotesContext';
 import { cn } from '../utils/cn';          // helper to join classes
+
+// Helper function to get folder icon component
+const getFolderIcon = (iconName) => {
+  const iconMap = {
+    Folder: Folder,
+    Archive: Archive,
+    Briefcase: Briefcase,
+    Book: Book,
+    Star: Star,
+    Heart: Heart,
+    Zap: Zap,
+    Target: Target,
+    Bookmark: Bookmark,
+    Sparkles: Sparkles
+  };
+  return iconMap[iconName] || Folder;
+};
+
+function RootDropZone({ children }) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: 'root-drop-zone',
+  });
+
+  return (
+    <div 
+      ref={setNodeRef}
+      className={`transition-all duration-200 ${
+        isOver ? 'bg-blue-50 border-2 border-dashed border-blue-300 rounded-lg p-2' : ''
+      }`}
+    >
+      {children}
+      {isOver && (
+        <div className="mt-4 p-4 border-2 border-dashed border-blue-400 rounded-lg bg-blue-100 text-center">
+          <div className="text-blue-600 text-sm font-medium">
+            📤 Drop here to move to root level
+          </div>
+          <div className="text-blue-500 text-xs mt-1">
+            Remove from folders and organize at the top level
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function EmptyStateMessage() {
   return (
@@ -47,30 +106,59 @@ export default function Sidebar() {
   const reorderSections = React.useCallback(useNotes().reorderSections, []);
   const pinnedSections = sections.filter((s) => s.pinned);
   const rootSections = getChildSections(null).filter((s) => !s.pinned);
-  const [editingId, setEditingId]   = React.useState(null);  const [draftLabel, setDraftLabel] = React.useState('');  const [openedDuringDrag, setOpenedDuringDrag] = React.useState([]);  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+  const [editingId, setEditingId] = React.useState(null);
+  const [draftLabel, setDraftLabel] = React.useState('');
+  const [openedDuringDrag, setOpenedDuringDrag] = React.useState([]);
+  const [customizingFolder, setCustomizingFolder] = useState(null);
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
     function allowedChildTypes(type) {
-      if (type === 'heading')    return ['subheading','text','table','image','icon','banner'];
-      if (type === 'subheading') return ['text','table','image','icon','banner'];
+      if (type === 'heading')    return ['subheading','text','table','image','icon','banner','folder'];
+      if (type === 'subheading') return ['text','table','image','icon','banner','folder'];
+      if (type === 'folder')     return ['heading','subheading','text','table','image','icon','banner','folder'];
       return [];
     }
     function handleDragEnd(event) {
     const { active, over } = event;
-    if (!active || !over || active.id === over.id) return;
+    if (!active) return;
 
     const dragged = sections.find((s) => s.id === active.id);
-    const target  = sections.find((s) => s.id === over.id);
+    if (!dragged) return;
 
-    if (!dragged || !target) return;
+    // If no target (dropped on empty space), move to root level
+    if (!over) {
+      if (dragged.parent !== null) {
+        updateSection(dragged.id, { parent: null });
+      }
+      return;
+    }
+
+    // If target is the same as dragged, do nothing
+    if (active.id === over.id) return;
+
+    const target = sections.find((s) => s.id === over.id);
+    if (!target) return;
+
+    // Special handling for root-level drop zone
+    if (over.id === 'root-drop-zone') {
+      updateSection(dragged.id, { parent: null });
+      return;
+    }
 
     // Drag onto heading → become its child
-    if (target.type === 'heading' && ['subheading','text','table','image','icon','banner'].includes(dragged.type)) {
+    if (target.type === 'heading' && ['subheading','text','table','image','icon','banner','folder'].includes(dragged.type)) {
       updateSection(dragged.id, { parent: target.id });
       return;
     }
 
     // Drag onto subheading → become its child
-    if (target.type === 'subheading' && ['text','table','image','icon','banner'].includes(dragged.type)) {
+    if (target.type === 'subheading' && ['text','table','image','icon','banner','folder'].includes(dragged.type)) {
+      updateSection(dragged.id, { parent: target.id });
+      return;
+    }
+
+    // Drag onto folder → become its child
+    if (target.type === 'folder' && ['heading','subheading','text','table','image','icon','banner','folder'].includes(dragged.type)) {
       updateSection(dragged.id, { parent: target.id });
       return;
     }
@@ -80,6 +168,61 @@ export default function Sidebar() {
       reorderSections(dragged.id, target.id);
     }
   }
+
+  // Folder customization handlers
+  const handleFolderCustomize = (folder) => {
+    setCustomizingFolder(folder);
+  };
+
+  const handleCustomizationSave = (updatedFolder) => {
+    updateSection(updatedFolder.id, updatedFolder);
+    setCustomizingFolder(null);
+  };
+
+  const handleCustomizationCancel = () => {
+    setCustomizingFolder(null);
+  };
+
+  // Helper function to get folder styling based on custom properties
+  const getFolderStyling = (section) => {
+    if (section.type !== 'folder') return {};
+
+    const color = section.folderColor || '#3B82F6';
+    const style = section.folderStyle || 'default';
+    const gradientEnabled = section.gradientEnabled || false;
+
+    const baseClasses = {
+      default: 'border',
+      rounded: 'border rounded-full',
+      modern: 'shadow-lg border-0',
+      minimal: 'border-0 bg-transparent'
+    };
+
+    // Convert hex color to RGB for background opacity
+    const hexToRgb = (hex) => {
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+      return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+      } : null;
+    };
+
+    const rgb = hexToRgb(color);
+    const bgColor = rgb ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.1)` : 'rgba(59, 130, 246, 0.1)';
+    const borderColor = rgb ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.3)` : 'rgba(59, 130, 246, 0.3)';
+
+    return {
+      classes: baseClasses[style] || baseClasses.default,
+      style: gradientEnabled ? {
+        background: `linear-gradient(135deg, ${bgColor}, ${bgColor.replace('0.1', '0.2')})`,
+        borderColor: borderColor
+      } : {
+        backgroundColor: bgColor,
+        borderColor: borderColor
+      }
+    };
+  };
 
     function handleDragStart(event) {
     const { active } = event;
@@ -109,10 +252,21 @@ export default function Sidebar() {
   /* ---------- helpers ---------- */
   
 // Removed duplicate implementation of allowedChildTypes function
-  const SectionIcon = (type) => {
+  const SectionIcon = (type, collapsed = false, section = null) => {
     switch (type) {
       case 'heading':
         return <Heading1 className="h-4 w-4 text-earth-700" />;
+      case 'folder':
+        if (section && section.folderIcon) {
+          const CustomIcon = getFolderIcon(section.folderIcon);
+          const color = section.folderColor || '#3B82F6';
+          return collapsed ? 
+            <CustomIcon className="h-4 w-4" style={{ color }} /> : 
+            <CustomIcon className="h-4 w-4" style={{ color }} />;
+        }
+        return collapsed ? 
+          <Folder className="h-4 w-4 text-blue-600" /> : 
+          <FolderOpen className="h-4 w-4 text-blue-600" />;
       case 'table':
         return <Table className="h-4 w-4 text-earth-700" />;
       case 'image':
@@ -170,6 +324,11 @@ function SortableRow({ id, children }) {
             addSection('heading');                  // Cmd/Ctrl + H
             return e.preventDefault();
             }
+            
+            if (mod && !shft && !alt && e.key.toLowerCase() === 'f') {
+            addSection('folder');                   // Cmd/Ctrl + F
+            return e.preventDefault();
+            }
 
             /* ---------- rename ---------- */
             if (!mod && !shft && !alt && e.key === 'Enter' && !editingId) {
@@ -182,6 +341,15 @@ function SortableRow({ id, children }) {
             /* ---------- delete ---------- */
             if (mod && !alt && (e.key === 'Backspace' || e.key === 'Delete')) {
             deleteSection(activeSection);
+            return e.preventDefault();
+            }
+            
+            /* ---------- move out of folder (Cmd/Ctrl + Shift + ↑) ---------- */
+            if (mod && shft && e.key === 'ArrowUp') {
+            const cur = sections.find((s) => s.id === activeSection);
+            if (cur && cur.parent) {
+                updateSection(activeSection, { parent: null });
+            }
             return e.preventDefault();
             }
 
@@ -284,19 +452,27 @@ const wrapperIndent = baseIndent + depth * indentUnit;
     >
       {/* ───────── ROW ───────── */}
       <div
-      className={cn(
-        `flex w-full items-center group
-          py-2 px-4
-          ${hasChildren && !section.collapsed
-            ? 'rounded-t-md rounded-b-none mb-0'
-            : 'rounded-md mb-2'}
-          cursor-pointer bg-white shadow-sm transition-all duration-150`,
-          activeSection === section.id
-            ? 'bg-[#F9F7F5] ring-2 ring-accent/40'
-            : 'hover:bg-[#FCFAF9] text-earth-700'
-        )}
-        onClick={() => setActiveSection(section.id)}
-      >
+        className={cn(
+          `flex w-full items-center group
+            py-2 px-4
+            ${hasChildren && !section.collapsed
+              ? 'rounded-t-md rounded-b-none mb-0'
+              : 'rounded-md mb-2'}
+            cursor-pointer transition-all duration-150`,
+            section.type === 'folder' 
+              ? `shadow-sm ${getFolderStyling(section).classes}` 
+              : 'bg-white shadow-sm',
+            activeSection === section.id
+              ? section.type === 'folder' 
+                ? 'ring-2 ring-opacity-40'
+                : 'bg-[#F9F7F5] ring-2 ring-accent/40'
+              : section.type === 'folder'
+                ? 'hover:brightness-95'
+                : 'hover:bg-[#FCFAF9] text-earth-700'
+          )}
+          style={section.type === 'folder' ? getFolderStyling(section).style : {}}
+          onClick={() => setActiveSection(section.id)}
+        >
 
         <GripVertical
           size={14}
@@ -327,12 +503,19 @@ const wrapperIndent = baseIndent + depth * indentUnit;
             setEditingId(section.id);
             setDraftLabel(section.content);
           }}
+          className="flex items-center gap-1"
         >
-          {SectionIcon(section.type)}
+          {SectionIcon(section.type, section.collapsed, section)}
+          {/* Show folder indicator if item is inside a folder */}
+          {section.parent && depth === 0 && (
+            <span className="text-xs text-blue-500 bg-blue-100 px-1 rounded" title="Inside folder">
+              📁
+            </span>
+          )}
         </div>
 
         {/* label or inline edit */}
-        {editingId === section.id && (section.type === 'heading' || section.type === 'subheading') ? (
+        {editingId === section.id && (section.type === 'heading' || section.type === 'subheading' || section.type === 'folder') ? (
           <input
             autoFocus
             spellCheck={false}
@@ -364,28 +547,67 @@ const wrapperIndent = baseIndent + depth * indentUnit;
         ) : (
           <span
             onDoubleClick={(e) => {
-              if (section.type === 'heading' || section.type === 'subheading') {
+              if (section.type === 'heading' || section.type === 'subheading' || section.type === 'folder') {
                 e.stopPropagation();
                 setEditingId(section.id);
                 setDraftLabel(section.content);
               }
             }}
             className={cn(
-              "ml-2 truncate flex-1",
+              "ml-2 truncate flex-1 flex items-center gap-2",
               depth === 0
                 ? "text-[15px] font-medium"
                 : depth === 1
                 ? "text-[14px]"
-                : "text-[13px]"
+                : "text-[13px]",
+              section.type === 'folder' ? "text-earth-600 italic" : ""
             )}
           >
-            {stripHtml(section.content, section.type) || `New ${section.type}`}
+            <span className="truncate">
+              {stripHtml(section.content, section.type) || `New ${section.type}`}
+            </span>
+            {/* Item count badge for folders */}
+            {section.type === 'folder' && section.showBadge !== false && (
+              <span className="bg-white/80 text-xs px-1.5 py-0.5 rounded-full text-earth-600 font-normal shrink-0">
+                {getChildSections(section.id).length}
+              </span>
+            )}
           </span>
         )}
 
         {/* toolbar (add/delete buttons) */}
         {editingId !== section.id && (
           <div className="ml-auto hidden group-hover:flex items-center gap-2 pointer-events-none">
+            {/* Move out of folder button - only show if item is in a folder */}
+            {section.parent && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  updateSection(section.id, { parent: null });
+                }}
+                className="p-1 rounded hover:bg-blue-50 pointer-events-auto"
+                title="Move to root level (Cmd+Shift+↑)"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-blue-600">
+                  <path d="M7 17L17 7M17 7H7M17 7V17"/>
+                </svg>
+              </button>
+            )}
+
+            {/* Folder customization button - only show for folders */}
+            {section.type === 'folder' && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleFolderCustomize(section);
+                }}
+                className="p-1 rounded hover:bg-purple-50 pointer-events-auto"
+                title="Customize folder appearance"
+              >
+                <Settings size={16} className="text-purple-600" />
+              </button>
+            )}
+            
             {/* pin */}
             <button
               onClick={(e) => {
@@ -465,6 +687,28 @@ const wrapperIndent = baseIndent + depth * indentUnit;
         </h2>
 
         <div className="flex gap-2 mt-1">
+          {/* AI Assistant */}
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="w-8 h-8 rounded-md bg-purple-500/40 hover:bg-purple-500/60 inline-flex items-center justify-center shadow-sm transition duration-150"
+            onClick={() => window.open('/ai-assistant', '_blank')}
+            title="AI Assistant - Summarize & Create Flashcards"
+          >
+            <Brain size={14} className="text-purple-700" />
+          </motion.button>
+
+          {/* Folder - Organization creator */}
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="w-8 h-8 rounded-md bg-blue-500/40 hover:bg-blue-500/60 inline-flex items-center justify-center shadow-sm transition duration-150"
+            onClick={() => addSection('folder')}
+            title="Add folder (organize your notes)"
+          >
+            <FolderPlus size={14} className="text-blue-700" />
+          </motion.button>
+
           {/* H1 - Primary section creator */}
           <motion.button
             whileHover={{ scale: 1.05 }}
@@ -506,21 +750,48 @@ const wrapperIndent = baseIndent + depth * indentUnit;
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
         >
-        <SortableContext
-            items={rootSections.map((s) => s.id)}
-            strategy={verticalListSortingStrategy}
-        >
-            {rootSections.map((sec) => (
-            <SortableRow key={sec.id} id={sec.id}>
-                {renderSection(sec, 0)}
-            </SortableRow>
-            ))}
-        </SortableContext>
+        <RootDropZone>
+          <SortableContext
+              items={rootSections.map((s) => s.id)}
+              strategy={verticalListSortingStrategy}
+          >
+              {rootSections.map((sec) => (
+              <SortableRow key={sec.id} id={sec.id}>
+                  {renderSection(sec, 0)}
+              </SortableRow>
+              ))}
+          </SortableContext>
 
-        {/* empty-state message stays outside SortableContext */}
-        {rootSections.length === 0 && <EmptyStateMessage />}
+          {/* empty-state message stays outside SortableContext */}
+          {/* Empty state with folder hint */}
+          {rootSections.length === 0 && (
+            <div className="text-center py-12">
+              <div className="text-earth-500 text-sm mb-3">No sections yet</div>
+              <div className="text-earth-400 text-xs mb-4">
+                Add your first heading or note above
+              </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+                <FolderPlus className="mx-auto mb-2 text-blue-600" size={24} />
+                <p className="text-blue-700 text-sm font-medium mb-1">💡 Tip: Use Folders</p>
+                <p className="text-blue-600 text-xs">
+                  Create folders to organize your notes.<br/>
+                  Drag any section into a folder to organize it!<br/>
+                  <strong>Drag items to empty space to remove from folders.</strong>
+                </p>
+              </div>
+            </div>
+          )}
+        </RootDropZone>
         </DndContext>
 
+        {/* Folder Customizer Modal */}
+        {customizingFolder && (
+          <FolderCustomizer
+            folder={customizingFolder}
+            onSave={handleCustomizationSave}
+            onCancel={handleCustomizationCancel}
+          />
+        )}
 
     </div>
   );

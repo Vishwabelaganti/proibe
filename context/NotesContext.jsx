@@ -103,6 +103,15 @@ export function NotesProvider({ children }) {
         newSection.headingUnderline = false;
         newSection.headingFont = '"Playfair Display", serif';
       }
+      if (type === 'folder') {
+        newSection.collapsed = false; // Folders start expanded
+        newSection.folderColor = '#3B82F6'; // Default blue color
+        newSection.folderIcon = 'Folder'; // Default folder icon
+        newSection.folderStyle = 'default'; // default, rounded, modern, minimal
+        newSection.folderSize = 'medium'; // small, medium, large
+        newSection.showBadge = true; // show item count badge
+        newSection.gradientEnabled = false; // gradient background
+      }
       setSections((prev) => {
         let updated = [...prev];
         // If beforeId is specified, increment order of all siblings after or at newOrder
@@ -198,6 +207,8 @@ export function NotesProvider({ children }) {
           borderWidth: 1,
           borderColor: '#e5e7eb'
         };
+      case 'folder':
+        return 'New Folder';
       default:
         return '';
     }

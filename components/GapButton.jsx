@@ -1,6 +1,6 @@
 // components/GapButton.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Type, Heading1, Heading2, CheckSquare, Code, Quote, Image, Table, Smile, Flag, SplitSquareVertical } from 'lucide-react';
+import { Plus, Type, Heading1, Heading2, CheckSquare, Code, Quote, Image, Table, Smile, Flag, SplitSquareVertical, Folder } from 'lucide-react';
 import { useNotes } from '../context/NotesContext';
 
 export default function GapButton({ parentId, beforeId = null }) {
@@ -98,6 +98,7 @@ export default function GapButton({ parentId, beforeId = null }) {
     { type: 'text', icon: Type, label: 'Text', description: 'Start writing with plain text' },
     { type: 'heading', icon: Heading1, label: 'Heading 1', description: 'Big section heading' },
     { type: 'subheading', icon: Heading2, label: 'Heading 2', description: 'Medium section heading' },
+    { type: 'folder', icon: Folder, label: 'Folder', description: 'Organize sections in a folder' },
     { type: 'table', icon: Table, label: 'Table', description: 'Create a data table' },
     { type: 'image', icon: Image, label: 'Image', description: 'Add an image from URL' },
     { type: 'icon', icon: Smile, label: 'Icon Block', description: 'Add an icon with text' },

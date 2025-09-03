@@ -39,6 +39,11 @@ export default function SortableSection({
   isEditing: externalIsEditing,
   onEdit,
 }) {
+  // Folders are only organizational tools in the sidebar, don't render in main editor
+  if (section.type === 'folder') {
+    return null;
+  }
+
   const { addSection, updateSection, deleteSection, sections } = useNotes();
 
   // Use internal editing state for headings/subheadings
