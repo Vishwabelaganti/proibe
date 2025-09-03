@@ -5,4 +5,5 @@ module.exports = {
   basePath: isProd ? '/proibe' : '',
   trailingSlash: true,
   output: isProd ? 'export' : undefined,
+  distDir: isProd ? 'docs' : '.next',
 };

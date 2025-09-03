@@ -1,16 +1,23 @@
 import React from 'react';
 import { Play, Pause, Volume2, Music } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useRouter } from 'next/router';
 
 /**  LIST YOUR TRACKS HERE  */
+const getTrackSrc = (filename) => {
+  // For static export, use the basePath
+  const basePath = process.env.NODE_ENV === 'production' ? '/proibe' : '';
+  return `${basePath}/sounds/${filename}`;
+};
+
 const TRACKS = [
-  { id: 'lofi1',      label: 'Lo-fi 1',      icon: '🎧', src: '/sounds/lofi1.mp3' },
-  { id: 'lofi2',      label: 'Lo-fi 2',      icon: '🎧', src: '/sounds/lofi2.mp3' },
-  { id: 'piano',      label: 'Piano loop',   icon: '🎹', src: '/sounds/piano-loop.mp3' },
-  { id: 'rainForest', label: 'Rain – Forest',icon: '🌧️', src: '/sounds/rain-forest.mp3' },
-  { id: 'rainTown',   label: 'Rain – Town',  icon: '🌧️', src: '/sounds/rain-town.mp3' },
-  { id: 'waves',      label: 'Waves',        icon: '🌊',  src: '/sounds/waves.mp3' },
-  { id: 'campfire',   label: 'Campfire',     icon: '🔥',  src: '/sounds/campfire.mp3' },
+  { id: 'lofi1',      label: 'Lo-fi 1',      icon: '🎧', src: getTrackSrc('lofi1.mp3') },
+  { id: 'lofi2',      label: 'Lo-fi 2',      icon: '🎧', src: getTrackSrc('lofi2.mp3') },
+  { id: 'piano',      label: 'Piano loop',   icon: '🎹', src: getTrackSrc('piano-loop.mp3') },
+  { id: 'rainForest', label: 'Rain – Forest',icon: '🌧️', src: getTrackSrc('rain-forest.mp3') },
+  { id: 'rainTown',   label: 'Rain – Town',  icon: '🌧️', src: getTrackSrc('rain-town.mp3') },
+  { id: 'waves',      label: 'Waves',        icon: '🌊',  src: getTrackSrc('waves.mp3') },
+  { id: 'campfire',   label: 'Campfire',     icon: '🔥',  src: getTrackSrc('Campfire.mp3') },
 ];
 
 export default function LofiMixer({ className = 'fixed bottom-6 right-6' }) {
@@ -18,14 +25,23 @@ export default function LofiMixer({ className = 'fixed bottom-6 right-6' }) {
 
   React.useEffect(() => {
     audios.current = Object.fromEntries(
-      TRACKS.map((t) => [t.id, new Audio(t.src)])
+      TRACKS.map((t) => {
+        const audio = new Audio(t.src);
+        audio.preload = 'none'; // Don't preload to save bandwidth
+        audio.onerror = (e) => {
+          console.error(`Failed to load audio: ${t.src}`, e);
+        };
+        return [t.id, audio];
+      })
     );
-  }, []);
 
-  React.useEffect(() => {
+    // Cleanup function
     return () => {
       if (!audios.current) return;
-      Object.values(audios.current).forEach((a) => a.pause());
+      Object.values(audios.current).forEach((audio) => {
+        audio.pause();
+        audio.src = ''; // Clear src to stop any loading
+      });
     };
   }, []);
 
@@ -50,13 +66,20 @@ export default function LofiMixer({ className = 'fixed bottom-6 right-6' }) {
       const audio = audios.current[id];
       audio.loop = true;
       audio.volume = vol;
-      if (playing && audio.paused) audio.play().catch(() => {});
+      if (playing && audio.paused) {
+        audio.play().catch((error) => {
+          console.error(`Failed to play audio ${id}:`, error);
+          // Auto-disable this track if it fails to play
+          setState((s) => ({ ...s, [id]: { ...s[id], playing: false } }));
+        });
+      }
       if (!playing && !audio.paused) audio.pause();
     }
   }, [state]);
 
-  const toggle = (id) =>
+  const toggle = (id) => {
     setState((s) => ({ ...s, [id]: { ...s[id], playing: !s[id].playing } }));
+  };
 
   const setVol = (id, v) =>
     setState((s) => ({ ...s, [id]: { ...s[id], vol: v } }));

@@ -708,7 +708,7 @@ export default function AIAssistant() {
                     <div>
                       <h2 className="text-xl font-semibold text-earth-800">Your Saved Content</h2>
                       <p className="text-sm text-earth-600 mt-1">
-                        All your processed documents and generated summaries are automatically saved here
+                        All your processed documents, generated summaries, and flashcard sets are automatically saved here
                       </p>
                     </div>
                     <div className="text-sm text-earth-500">
@@ -738,10 +738,22 @@ export default function AIAssistant() {
                     >
                       Processed Documents
                     </button>
+                    <button
+                      onClick={() => setSavedContentTab('flashcards')}
+                      className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                        savedContentTab === 'flashcards'
+                          ? 'bg-accent text-white'
+                          : 'text-earth-600 hover:bg-earth-100'
+                      }`}
+                    >
+                      Flashcard Sets
+                    </button>
                   </div>
                 </div>
                 <div className="p-6">
-                  {savedContentTab === 'summaries' ? <SavedSummaries /> : <SavedDocuments />}
+                  {savedContentTab === 'summaries' && <SavedSummaries />}
+                  {savedContentTab === 'documents' && <SavedDocuments />}
+                  {savedContentTab === 'flashcards' && <SavedFlashcards />}
                 </div>
               </div>
             )}
