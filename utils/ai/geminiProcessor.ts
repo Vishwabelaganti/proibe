@@ -8,41 +8,34 @@ if (!apiKey) {
   throw new Error('NEXT_PUBLIC_GEMINI_API_KEY is not configured');
 }
 
+// Initialize with v1 API version (v1beta doesn't support gemini-1.5-flash/pro)
 const genAI = new GoogleGenerativeAI(apiKey);
 
 export class GeminiProcessor {
   private model: any;
-  
+
   constructor() {
-    // Try different model names in order of preference
-    const modelNames = [
-      'gemini-1.5-flash',
-      'gemini-1.5-pro', 
-      'gemini-pro',
-      'models/gemini-1.5-flash',
-      'models/gemini-pro'
-    ];
-    
-    // Use the first available model name
-    this.model = genAI.getGenerativeModel({ 
-      model: modelNames[0], // Start with the most likely to work
+    // Use gemini-pro model which is the stable name supported by v1beta API
+    // Note: gemini-1.5-flash and gemini-1.5-pro are not supported in v1beta
+    this.model = genAI.getGenerativeModel({
+      model: 'gemini-pro',
       generationConfig: {
         temperature: 0.7,
         topP: 0.8,
         maxOutputTokens: 8192,
       }
     });
-    
-    console.log('Using Gemini model:', modelNames[0]);
+
+    console.log('Using Gemini model: gemini-pro');
   }
 
   async generateSummary(text: string, options: SummaryOptions): Promise<string> {
     console.log('Generating summary for text length:', text.length);
     console.log('Summary options:', options);
-    
+
     const prompt = this.buildSummaryPrompt(text, options);
     console.log('Summary prompt:', prompt.substring(0, 200) + '...');
-    
+
     try {
       const result = await this.model.generateContent(prompt);
       const response = await result.response;
@@ -51,42 +44,28 @@ export class GeminiProcessor {
       return summary;
     } catch (error) {
       console.error('Error generating summary:', error);
-      
-      // If the error is about model not found, try with a different model
-      if (error.message?.includes('not found') || error.message?.includes('not supported')) {
-        console.log('Trying alternative model...');
-        try {
-          const altModel = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
-          const result = await altModel.generateContent(prompt);
-          const response = await result.response;
-          return response.text();
-        } catch (altError) {
-          console.error('Alternative model also failed:', altError);
-          throw new Error(`Failed to generate summary with any available model: ${altError.message}`);
-        }
-      }
-      
-      throw new Error(`Failed to generate summary: ${error.message}`);
+
+      throw new Error(`Failed to generate summary: ${(error as Error).message || 'Unknown error'}`);
     }
   }
 
   async generateFlashcards(text: string, options: FlashcardOptions): Promise<Flashcard[]> {
     console.log('Generating flashcards for text length:', text.length);
     console.log('Flashcard options:', options);
-    
+
     const prompt = this.buildFlashcardPrompt(text, options);
     console.log('Flashcard prompt:', prompt.substring(0, 200) + '...');
-    
+
     try {
       const result = await this.model.generateContent(prompt);
       const response = await result.response;
       let jsonResponse = response.text();
       console.log('Raw flashcard response:', jsonResponse);
-      
+
       // Clean up the JSON response - remove any markdown formatting
       jsonResponse = jsonResponse.replace(/```json\n?/g, '').replace(/```\n?/g, '');
       jsonResponse = jsonResponse.trim();
-      
+
       // Ensure it starts and ends properly
       if (!jsonResponse.startsWith('{')) {
         const startIndex = jsonResponse.indexOf('{');
@@ -94,16 +73,16 @@ export class GeminiProcessor {
           jsonResponse = jsonResponse.substring(startIndex);
         }
       }
-      
+
       if (!jsonResponse.endsWith('}')) {
         const endIndex = jsonResponse.lastIndexOf('}');
         if (endIndex !== -1) {
           jsonResponse = jsonResponse.substring(0, endIndex + 1);
         }
       }
-      
+
       console.log('Cleaned JSON response:', jsonResponse);
-      
+
       // Parse the JSON response
       const parsed = JSON.parse(jsonResponse);
       const flashcards = parsed.flashcards || [];
@@ -111,7 +90,7 @@ export class GeminiProcessor {
       return flashcards;
     } catch (error) {
       console.error('Error generating flashcards:', error);
-      
+
       // If JSON parsing failed, try to extract flashcards manually
       if (error instanceof SyntaxError) {
         console.log('JSON parsing failed, trying manual extraction...');
@@ -119,7 +98,7 @@ export class GeminiProcessor {
           const result = await this.model.generateContent(prompt);
           const response = await result.response;
           const textResponse = response.text();
-          
+
           // Try to extract flashcards from text format
           const flashcards = this.extractFlashcardsFromText(textResponse, options.practiceMode);
           if (flashcards.length > 0) {
@@ -130,46 +109,29 @@ export class GeminiProcessor {
           console.error('Manual extraction also failed:', extractError);
         }
       }
-      
-      // If the error is about model not found, try with a different model
-      if (error.message?.includes('not found') || error.message?.includes('not supported')) {
-        console.log('Trying alternative model for flashcards...');
-        try {
-          const altModel = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
-          const result = await altModel.generateContent(prompt);
-          const response = await result.response;
-          let jsonResponse = response.text();
-          jsonResponse = jsonResponse.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-          const parsed = JSON.parse(jsonResponse);
-          return parsed.flashcards || [];
-        } catch (altError) {
-          console.error('Alternative model also failed for flashcards:', altError);
-          throw new Error(`Failed to generate flashcards with any available model: ${altError.message}`);
-        }
-      }
-      
-      throw new Error(`Failed to generate flashcards: ${error.message}`);
+
+      throw new Error(`Failed to generate flashcards: ${(error as Error).message || 'Unknown error'}`);
     }
   }
 
   private extractFlashcardsFromText(text: string, practiceMode?: boolean): Flashcard[] {
     const flashcards: Flashcard[] = [];
-    
+
     if (practiceMode) {
       // Extract MCQ format questions
       const mcqPattern = /Q:\s*([^A]*?)\s*A\)\s*([^B]*?)\s*B\)\s*([^C]*?)\s*C\)\s*([^D]*?)\s*D\)\s*([^C]*?)\s*Correct:\s*([A-D])/gs;
       let match;
-      
+
       while ((match = mcqPattern.exec(text)) !== null) {
         const question = match[1].trim();
         const options = [
           match[2].trim(),
-          match[3].trim(), 
+          match[3].trim(),
           match[4].trim(),
           match[5].trim()
         ];
         const correctAnswer = match[6].trim();
-        
+
         if (question && options.every(opt => opt)) {
           flashcards.push({
             id: `card-${flashcards.length + 1}`,
@@ -185,11 +147,11 @@ export class GeminiProcessor {
       // Try to find Q: and A: patterns for regular flashcards
       const qaPattern = /Q:\s*([^A]*?)\s*A:\s*([^Q]*?)(?=Q:|$)/gs;
       let match;
-      
+
       while ((match = qaPattern.exec(text)) !== null) {
         const question = match[1].trim();
         const answer = match[2].trim();
-        
+
         if (question && answer) {
           flashcards.push({
             id: `card-${flashcards.length + 1}`,
@@ -200,7 +162,7 @@ export class GeminiProcessor {
         }
       }
     }
-    
+
     return flashcards;
   }
 
@@ -260,7 +222,7 @@ Summary:`;
   }
 
   private buildFlashcardPrompt(text: string, options: FlashcardOptions): string {
-    const difficultyInstruction = options.difficulty === 'mixed' 
+    const difficultyInstruction = options.difficulty === 'mixed'
       ? 'Mix of easy, medium, and hard questions'
       : `${options.difficulty} difficulty questions`;
 
@@ -347,7 +309,7 @@ ${text}`;
       const result = await this.model.generateContent(analysisPrompt);
       const response = await result.response;
       const analysis = JSON.parse(response.text());
-      
+
       return {
         wordCount,
         readingTime,
