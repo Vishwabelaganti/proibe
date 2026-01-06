@@ -15,10 +15,10 @@ export class GeminiProcessor {
   private model: any;
 
   constructor() {
-    // Use gemini-pro model which is the stable name supported by v1beta API
-    // Note: gemini-1.5-flash and gemini-1.5-pro are not supported in v1beta
+    // Using gemini-2.0-flash as confirmed by API capability listing
+    // Previous models (gemini-pro, gemini-1.5-flash) were returning 404s
     this.model = genAI.getGenerativeModel({
-      model: 'gemini-pro',
+      model: 'gemini-2.0-flash',
       generationConfig: {
         temperature: 0.7,
         topP: 0.8,
@@ -26,7 +26,7 @@ export class GeminiProcessor {
       }
     });
 
-    console.log('Using Gemini model: gemini-pro');
+    console.log('Using Gemini model: gemini-2.0-flash');
   }
 
   async generateSummary(text: string, options: SummaryOptions): Promise<string> {
