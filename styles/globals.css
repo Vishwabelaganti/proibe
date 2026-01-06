@@ -496,3 +496,135 @@ h1, h2, h3, h4 { @apply font-serif; }
   border-color: rgba(139, 69, 19, 0.3);
 }
 
+/* ContentEditable placeholder styling */
+[contenteditable][data-placeholder]:empty::before {
+  content: attr(data-placeholder);
+  color: #9CA3AF;
+  font-style: italic;
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+[contenteditable]:empty {
+  min-height: 1.5em;
+}
+
+/* Improve contentEditable focus behavior */
+[contenteditable]:focus {
+  outline: none;
+}
+
+/* Superscript and Subscript styling */
+sup {
+  font-size: 0.75em !important;
+  vertical-align: super !important;
+  line-height: 0 !important;
+}
+
+sub {
+  font-size: 0.75em !important;
+  vertical-align: sub !important;
+  line-height: 0 !important;
+}
+
+/* Math expression styling */
+.math-expression {
+  display: inline-block !important;
+  padding: 4px 8px !important;
+  margin: 2px !important;
+  background: #f8f9fa !important;
+  border: 1px solid #e9ecef !important;
+  border-radius: 4px !important;
+  font-family: 'Times New Roman', serif !important;
+  font-style: italic !important;
+  color: #495057 !important;
+  transition: background-color 0.2s ease !important;
+}
+
+.math-expression:hover {
+  background: #e9ecef !important;
+}
+
+.math-expression [contenteditable] {
+  outline: none !important;
+  background: transparent !important;
+  border: none !important;
+  min-width: 50px !important;
+  display: inline-block !important;
+}
+
+/* Better math symbols and formatting */
+.math-expression sup,
+.math-expression sub {
+  font-size: 0.7em !important;
+}
+
+/* Math expression focus state */
+.math-expression:focus-within {
+  background: #fff3cd !important;
+  border-color: #ffeaa7 !important;
+  box-shadow: 0 0 0 2px rgba(255, 193, 7, 0.25) !important;
+}
+
+/* Symbol picker styling */
+.symbol-picker {
+  animation: fadeIn 0.15s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.symbol-button {
+  transition: all 0.15s ease;
+  font-family: 'Times New Roman', serif;
+  user-select: none;
+}
+
+.symbol-button:hover {
+  transform: scale(1.1);
+  z-index: 10;
+  position: relative;
+}
+
+.symbol-button:active {
+  transform: scale(0.95);
+}
+
+/* Tooltip-style hover effect for symbols */
+.symbol-button:hover::after {
+  content: attr(title);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  white-space: nowrap;
+  z-index: 20;
+  pointer-events: none;
+  margin-bottom: 4px;
+}
+
+.symbol-button:hover::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 4px solid transparent;
+  border-top-color: rgba(0, 0, 0, 0.8);
+  z-index: 20;
+  pointer-events: none;
+}
+

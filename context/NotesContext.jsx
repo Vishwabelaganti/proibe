@@ -14,6 +14,27 @@ export function useNotes() {
 export function NotesProvider({ children }) {
   // Initialize sections from localStorage or use defaults
   const [sections, setSections] = useState(() => {
+    // Check if we're in the browser (not server-side)
+    if (typeof window === 'undefined') {
+      // Return default sections for server-side rendering
+      return [
+        {
+          id: 'welcome-heading',
+          type: 'heading',
+          content: 'Welcome to Proibe Notes',
+          parent: null,
+          order: 0,
+          collapsed: false,
+          pinned: false,
+          headingColor: '#4A3B2F',
+          headingFont: 'Inter, sans-serif',
+          headingBold: true,
+          headingItalic: false,
+          headingUnderline: false
+        }
+      ];
+    }
+
     try {
       const saved = localStorage.getItem('proibe-notes-sections');
       if (saved) {

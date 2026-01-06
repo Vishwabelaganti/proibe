@@ -9,7 +9,7 @@ const container = {
 };
 const item = {
   hidden: { opacity: 0, y: -10 },
-  show:  { opacity: 1, y:  0, transition: { type: 'spring', stiffness: 120, damping: 20 } }
+  show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 120, damping: 20 } }
 };
 
 export default function Header({ headerBg, setHeaderBg }) {

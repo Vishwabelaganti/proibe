@@ -145,35 +145,100 @@ export default function NoteEditor() {
 
   async function handleExportPDF(options) {
     if (!exportRef.current) return;
-    const canvas = await html2canvas(exportRef.current, {
-      backgroundColor: '#F1EEEB',
-      scale: 2,
-      useCORS: true,
-    });
-    const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    const imgProps = { width: canvas.width, height: canvas.height };
-    const ratio = Math.min(pageWidth / imgProps.width, pageHeight / imgProps.height);
-    const imgWidth = imgProps.width * ratio;
-    const imgHeight = imgProps.height * ratio;
-    pdf.addImage(imgData, 'PNG', (pageWidth - imgWidth) / 2, 40, imgWidth, imgHeight);
+    
+    try {
+      const canvas = await html2canvas(exportRef.current, {
+        backgroundColor: '#F1EEEB',
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        height: exportRef.current.scrollHeight,
+        width: exportRef.current.scrollWidth
+      });
+      
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({ 
+        orientation: options.orientation || 'portrait', 
+        unit: 'pt', 
+        format: options.pageSize?.toLowerCase() || 'a4' 
+      });
+      
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 40;
+      const contentWidth = pageWidth - (margin * 2);
+      const contentHeight = pageHeight - (margin * 2);
+      
+      // Calculate dimensions
+      const imgProps = { width: canvas.width, height: canvas.height };
+      const ratio = contentWidth / imgProps.width;
+      const imgWidth = contentWidth;
+      const imgHeight = imgProps.height * ratio;
+      
+      // Calculate how many pages we need
+      const totalPages = Math.ceil(imgHeight / contentHeight);
+      
+      // Get the canvas context to manipulate the image
+      const originalCanvas = canvas;
+      
+      // Add pages with content
+      for (let i = 0; i < totalPages; i++) {
+        if (i > 0) {
+          pdf.addPage();
+        }
+        
+        // Calculate the source rectangle for this page (in canvas coordinates)
+        const sourceY = (i * contentHeight) / ratio;
+        const sourceHeight = Math.min(contentHeight / ratio, originalCanvas.height - sourceY);
+        
+        // Create a temporary canvas to crop this page's content
+        const tempCanvas = document.createElement('canvas');
+        const tempCtx = tempCanvas.getContext('2d');
+        tempCanvas.width = originalCanvas.width;
+        tempCanvas.height = sourceHeight;
+        
+        // Draw the cropped portion onto the temp canvas
+        tempCtx.drawImage(
+          originalCanvas,
+          0, sourceY,                    // Source x, y
+          originalCanvas.width, sourceHeight,  // Source width, height
+          0, 0,                          // Dest x, y
+          originalCanvas.width, sourceHeight   // Dest width, height
+        );
+        
+        // Convert to data URL and add to PDF
+        const croppedImgData = tempCanvas.toDataURL('image/png');
+        const croppedHeight = sourceHeight * ratio;
+        
+        pdf.addImage(
+          croppedImgData, 
+          'PNG', 
+          margin, 
+          margin, 
+          imgWidth, 
+          croppedHeight
+        );
+      }
 
-    // Add PDF bookmarks (outlines) for headings/subheadings
-    if (rootSection && pdf.outline && typeof pdf.outline.add === 'function' && Array.isArray(pdf.outline)) {
-      const bookmarks = getPdfBookmarks(sections, getChildSections, rootSection.id, 0);
-      function addOutline(items, parent) {
-        for (const item of items) {
-          const ref = pdf.outline.add(item.title, { pageNumber: 1 }, parent);
-          if (item.children && item.children.length > 0) {
-            addOutline(item.children, ref);
+      // Add PDF bookmarks (outlines) for headings/subheadings
+      if (options.includeBookmarks && rootSection && pdf.outline && typeof pdf.outline.add === 'function' && Array.isArray(pdf.outline)) {
+        const bookmarks = getPdfBookmarks(sections, getChildSections, rootSection.id, 0);
+        function addOutline(items, parent) {
+          for (const item of items) {
+            const ref = pdf.outline.add(item.title, { pageNumber: 1 }, parent);
+            if (item.children && item.children.length > 0) {
+              addOutline(item.children, ref);
+            }
           }
         }
+        addOutline(bookmarks, null);
       }
-      addOutline(bookmarks, null);
+      
+      pdf.save('proibe-notes.pdf');
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      alert('Error exporting PDF. Please try again.');
     }
-    pdf.save('proibe-notes.pdf');
   }
 
   const [showExportDialog, setShowExportDialog] = useState(false);
@@ -204,8 +269,8 @@ export default function NoteEditor() {
       {/* Main interactive editor UI as before */}
       <div className="flex-1 overflow-y-auto px-4 py-6">
         {/* Hidden print view for PDF export only (off-screen, but visible to html2canvas) */}
-        <div style={{ position: 'absolute', left: '-200vw', top: 0, width: '900px', minHeight: '100px', pointerEvents: 'none', zIndex: -1, opacity: 1 }}>
-          <div ref={exportRef} id="pdf-print-view">
+        <div style={{ position: 'absolute', left: '-200vw', top: 0, width: '900px', minHeight: '100px', maxHeight: 'none', height: 'auto', pointerEvents: 'none', zIndex: -1, opacity: 1 }}>
+          <div ref={exportRef} id="pdf-print-view" style={{ width: '100%', height: 'auto', overflow: 'visible' }}>
             {rootSection && <NotesPrintView rootId={rootSection.id} />}
           </div>
         </div>

@@ -11,6 +11,10 @@ import {
   SplitSquareVertical,
   Indent,
   Outdent,
+  Superscript,
+  Subscript,
+  Calculator,
+  Omega,
 } from 'lucide-react';
 
 const FONT_SIZES = [
@@ -30,6 +34,115 @@ const COLORS = [
   '#2d1c0f', '#a67c52', '#bfae9b', '#4A3B2F', '#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#6B7280', '#000000', '#ffffff'
 ];
 
+const MATH_SYMBOLS = {
+  'Greek Letters': [
+    { symbol: 'α', name: 'alpha' },
+    { symbol: 'β', name: 'beta' },
+    { symbol: 'γ', name: 'gamma' },
+    { symbol: 'δ', name: 'delta' },
+    { symbol: 'ε', name: 'epsilon' },
+    { symbol: 'ζ', name: 'zeta' },
+    { symbol: 'η', name: 'eta' },
+    { symbol: 'θ', name: 'theta' },
+    { symbol: 'ι', name: 'iota' },
+    { symbol: 'κ', name: 'kappa' },
+    { symbol: 'λ', name: 'lambda' },
+    { symbol: 'μ', name: 'mu' },
+    { symbol: 'ν', name: 'nu' },
+    { symbol: 'ξ', name: 'xi' },
+    { symbol: 'π', name: 'pi' },
+    { symbol: 'ρ', name: 'rho' },
+    { symbol: 'σ', name: 'sigma' },
+    { symbol: 'τ', name: 'tau' },
+    { symbol: 'υ', name: 'upsilon' },
+    { symbol: 'φ', name: 'phi' },
+    { symbol: 'χ', name: 'chi' },
+    { symbol: 'ψ', name: 'psi' },
+    { symbol: 'ω', name: 'omega' },
+    { symbol: 'Α', name: 'Alpha' },
+    { symbol: 'Β', name: 'Beta' },
+    { symbol: 'Γ', name: 'Gamma' },
+    { symbol: 'Δ', name: 'Delta' },
+    { symbol: 'Θ', name: 'Theta' },
+    { symbol: 'Λ', name: 'Lambda' },
+    { symbol: 'Π', name: 'Pi' },
+    { symbol: 'Σ', name: 'Sigma' },
+    { symbol: 'Φ', name: 'Phi' },
+    { symbol: 'Ψ', name: 'Psi' },
+    { symbol: 'Ω', name: 'Omega' }
+  ],
+  'Mathematical Operators': [
+    { symbol: '±', name: 'plus-minus' },
+    { symbol: '∓', name: 'minus-plus' },
+    { symbol: '×', name: 'multiplication' },
+    { symbol: '÷', name: 'division' },
+    { symbol: '∞', name: 'infinity' },
+    { symbol: '∑', name: 'summation' },
+    { symbol: '∏', name: 'product' },
+    { symbol: '∫', name: 'integral' },
+    { symbol: '∮', name: 'contour integral' },
+    { symbol: '∂', name: 'partial derivative' },
+    { symbol: '∇', name: 'nabla' },
+    { symbol: '√', name: 'square root' },
+    { symbol: '∛', name: 'cube root' },
+    { symbol: '∜', name: 'fourth root' },
+    { symbol: '∝', name: 'proportional to' },
+    { symbol: '≈', name: 'approximately equal' },
+    { symbol: '≠', name: 'not equal' },
+    { symbol: '≤', name: 'less than or equal' },
+    { symbol: '≥', name: 'greater than or equal' },
+    { symbol: '≪', name: 'much less than' },
+    { symbol: '≫', name: 'much greater than' },
+    { symbol: '∈', name: 'element of' },
+    { symbol: '∉', name: 'not element of' },
+    { symbol: '⊂', name: 'subset of' },
+    { symbol: '⊃', name: 'superset of' },
+    { symbol: '⊆', name: 'subset or equal' },
+    { symbol: '⊇', name: 'superset or equal' },
+    { symbol: '∪', name: 'union' },
+    { symbol: '∩', name: 'intersection' },
+    { symbol: '∅', name: 'empty set' }
+  ],
+  'Arrows & Logic': [
+    { symbol: '→', name: 'right arrow' },
+    { symbol: '←', name: 'left arrow' },
+    { symbol: '↑', name: 'up arrow' },
+    { symbol: '↓', name: 'down arrow' },
+    { symbol: '↔', name: 'left-right arrow' },
+    { symbol: '⇒', name: 'implies' },
+    { symbol: '⇐', name: 'implied by' },
+    { symbol: '⇔', name: 'if and only if' },
+    { symbol: '∀', name: 'for all' },
+    { symbol: '∃', name: 'there exists' },
+    { symbol: '∄', name: 'there does not exist' },
+    { symbol: '∧', name: 'logical and' },
+    { symbol: '∨', name: 'logical or' },
+    { symbol: '¬', name: 'logical not' },
+    { symbol: '⊕', name: 'exclusive or' },
+    { symbol: '⊤', name: 'top' },
+    { symbol: '⊥', name: 'bottom' }
+  ],
+  'Geometry & Misc': [
+    { symbol: '°', name: 'degree' },
+    { symbol: '′', name: 'prime' },
+    { symbol: '″', name: 'double prime' },
+    { symbol: '∠', name: 'angle' },
+    { symbol: '∟', name: 'right angle' },
+    { symbol: '⊥', name: 'perpendicular' },
+    { symbol: '∥', name: 'parallel' },
+    { symbol: '≅', name: 'congruent' },
+    { symbol: '∼', name: 'similar' },
+    { symbol: '⌀', name: 'diameter' },
+    { symbol: '℅', name: 'care of' },
+    { symbol: '№', name: 'numero' },
+    { symbol: '©', name: 'copyright' },
+    { symbol: '®', name: 'registered' },
+    { symbol: '™', name: 'trademark' },
+    { symbol: '§', name: 'section' },
+    { symbol: '¶', name: 'paragraph' }
+  ]
+};
+
 /* ─── main editor component ───────────────────────────────── */
 export default function RichTextEditor({ content, onChange, type = 'text' }) {
   const editorRef = useRef(null);
@@ -38,156 +151,122 @@ export default function RichTextEditor({ content, onChange, type = 'text' }) {
   const [fontFamily, setFontFamily] = useState('');
   const [fontSize, setFontSize] = useState('16px');
   const [color, setColor] = useState('#000000');
+  const [showSymbolPicker, setShowSymbolPicker] = useState(false);
+  const [activeSymbolCategory, setActiveSymbolCategory] = useState('Greek Letters');
 
   useEffect(() => {
-    if (editorRef.current && content !== editorRef.current.innerHTML) {
-      editorRef.current.innerHTML = content || '';
+    if (editorRef.current) {
+      const currentContent = editorRef.current.innerHTML;
+      // Only update if content is significantly different (avoid cursor jumps)
+      if (content !== currentContent && content !== undefined) {
+        // Save current selection
+        const selection = window.getSelection();
+        const range = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+        
+        editorRef.current.innerHTML = content || '';
+        
+        // Try to restore selection if it was at the end
+        if (range && editorRef.current.textContent.length > 0) {
+          try {
+            const newRange = document.createRange();
+            newRange.selectNodeContents(editorRef.current);
+            newRange.collapse(false); // Move to end
+            selection.removeAllRanges();
+            selection.addRange(newRange);
+          } catch (e) {
+            // Ignore selection restoration errors
+          }
+        }
+      }
     }
   }, [content]);
 
+  // Close symbol picker when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showSymbolPicker && editorRef.current && !editorRef.current.closest('.relative').contains(event.target)) {
+        setShowSymbolPicker(false);
+      }
+    };
+
+    if (showSymbolPicker) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showSymbolPicker]);
+
   const handleEditorKeydown = (e) => {
-    const target = e.target;
-    
     // Always stop propagation to prevent sidebar navigation
     e.stopPropagation();
+    
+    // Handle keyboard shortcuts with Ctrl/Cmd
+    if (e.ctrlKey || e.metaKey) {
+      // Symbol picker toggle: Ctrl/Cmd + M
+      if (e.key === 'm' || e.key === 'M') {
+        e.preventDefault();
+        setShowSymbolPicker(!showSymbolPicker);
+        return;
+      }
+      
+      // Superscript: Ctrl/Cmd + Shift + P
+      if (e.shiftKey && (e.key === 'p' || e.key === 'P')) {
+        e.preventDefault();
+        applySuperscript();
+        return;
+      }
+      
+      // Subscript: Ctrl/Cmd + Shift + L
+      if (e.shiftKey && (e.key === 'l' || e.key === 'L')) {
+        e.preventDefault();
+        applySubscript();
+        return;
+      }
+    }
     
     // Handle Tab key for indentation
     if (e.key === 'Tab') {
       e.preventDefault();
-      
       const selection = window.getSelection();
       if (selection.rangeCount > 0) {
         const range = selection.getRangeAt(0);
+        const indentText = e.shiftKey ? '' : '    '; // 4 spaces for indent, nothing for outdent
         
         if (e.shiftKey) {
-          // Shift+Tab: Remove indentation (outdent)
-          const lineStart = range.startContainer;
-          const textNode = lineStart.nodeType === Node.TEXT_NODE ? lineStart : lineStart.childNodes[range.startOffset];
-          if (textNode && textNode.nodeType === Node.TEXT_NODE) {
-            const text = textNode.textContent;
-            // Remove up to 4 spaces or 1 tab at the beginning of the line or after a line break
-            const newText = text.replace(/(^|\n)(    |\t)/, '$1');
-            if (newText !== text) {
-              textNode.textContent = newText;
-              // Adjust cursor position
-              const newOffset = Math.max(0, range.startOffset - (text.length - newText.length));
-              range.setStart(textNode, newOffset);
-              range.setEnd(textNode, newOffset);
-              selection.removeAllRanges();
-              selection.addRange(range);
-            }
+          // Shift+Tab: Simple outdent - remove spaces at cursor
+          const textBefore = range.startContainer.textContent.substring(0, range.startOffset);
+          if (textBefore.endsWith('    ')) {
+            range.setStart(range.startContainer, range.startOffset - 4);
+            range.deleteContents();
           }
         } else {
-          // Tab: Add indentation (indent)
-          const indentText = '    '; // 4 spaces for indentation
+          // Tab: Simple indent
           range.deleteContents();
           const textNode = document.createTextNode(indentText);
           range.insertNode(textNode);
           range.setStartAfter(textNode);
-          range.setEndAfter(textNode);
-          selection.removeAllRanges();
-          selection.addRange(range);
-        }
-        handleInput();
-      }
-      return;
-    }
-    
-    // Handle Enter key
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      
-      const selection = window.getSelection();
-      if (!selection.rangeCount) return;
-      
-      const range = selection.getRangeAt(0);
-      
-      // Check if we're in special elements
-      const isInCode = target && (target.tagName === 'CODE' || target.closest('code'));
-      const isInQuote = target && target.closest('blockquote');
-      
-      if (isInCode) {
-        // In code blocks, insert newline character
-        document.execCommand('insertText', false, '\n');
-      } else {
-        // In regular text, insert line break
-        document.execCommand('insertLineBreak', false, null);
-      }
-      
-      handleInput();
-      return;
-    }
-    
-    // Handle Backspace key
-    if (e.key === 'Backspace') {
-      const selection = window.getSelection();
-      if (!selection.rangeCount) return;
-      
-      const range = selection.getRangeAt(0);
-      
-      // If there's a text selection, let default behavior handle it
-      if (!range.collapsed) {
-        setTimeout(() => handleInput(), 0);
-        return;
-      }
-      
-      // Check if we're at the very start of the editor
-      const editor = editorRef.current;
-      if (range.startContainer === editor && range.startOffset === 0) {
-        e.preventDefault(); // Don't delete if we're at the very beginning
-        return;
-      }
-      
-      // Check if we're at start of a text node after a BR
-      if (range.startContainer.nodeType === Node.TEXT_NODE && range.startOffset === 0) {
-        const textNode = range.startContainer;
-        const prevSibling = textNode.previousSibling;
-        
-        if (prevSibling && prevSibling.tagName === 'BR') {
-          e.preventDefault();
-          // Remove the BR and merge with previous line
-          prevSibling.remove();
-          // Position cursor at start of current text node
-          range.setStart(textNode, 0);
           range.collapse(true);
           selection.removeAllRanges();
           selection.addRange(range);
-          handleInput();
-          return;
         }
       }
-      
-      // For all other cases, use default backspace behavior
+      // Defer input handling to avoid conflicts
       setTimeout(() => handleInput(), 0);
       return;
+    }
+
+    // For other keys, let the browser handle them naturally
+    // Only handle input after the key event completes
+    if (e.key === 'Enter' || e.key === 'Backspace' || e.key === 'Delete') {
+      setTimeout(() => handleInput(), 0);
     }
   };
 
   const handleInput = () => {
     if (editorRef.current) {
-      onChange(editorRef.current.innerHTML);
-      
-      // Maintain consistent formatting by preserving current settings
-      const selection = window.getSelection();
-      if (selection.rangeCount > 0) {
-        const range = selection.getRangeAt(0);
-        const container = range.commonAncestorContainer;
-        
-        // If we're in a styled container, maintain the formatting
-        if (container.nodeType === Node.ELEMENT_NODE || container.parentElement) {
-          const element = container.nodeType === Node.ELEMENT_NODE ? container : container.parentElement;
-          
-          // Apply current font settings to new content
-          if (fontFamily) {
-            element.style.fontFamily = fontFamily;
-          }
-          if (fontSize) {
-            element.style.fontSize = fontSize;
-          }
-          if (color) {
-            element.style.color = color;
-          }
-        }
+      const newContent = editorRef.current.innerHTML;
+      // Only call onChange if content actually changed
+      if (newContent !== content) {
+        onChange(newContent);
       }
     }
   };
@@ -217,6 +296,83 @@ export default function RichTextEditor({ content, onChange, type = 'text' }) {
     }
     
     handleInput();
+  };
+
+  // Superscript function
+  const applySuperscript = () => {
+    const selection = window.getSelection();
+    if (selection.rangeCount > 0) {
+      const selectedText = selection.toString();
+      if (selectedText) {
+        const supHTML = `<sup style="font-size: 0.8em; vertical-align: super;">${selectedText}</sup>`;
+        document.execCommand('insertHTML', false, supHTML);
+      } else {
+        const supHTML = `<sup style="font-size: 0.8em; vertical-align: super;">superscript</sup>`;
+        document.execCommand('insertHTML', false, supHTML);
+      }
+    }
+    handleInput();
+  };
+
+  // Subscript function
+  const applySubscript = () => {
+    const selection = window.getSelection();
+    if (selection.rangeCount > 0) {
+      const selectedText = selection.toString();
+      if (selectedText) {
+        const subHTML = `<sub style="font-size: 0.8em; vertical-align: sub;">${selectedText}</sub>`;
+        document.execCommand('insertHTML', false, subHTML);
+      } else {
+        const subHTML = `<sub style="font-size: 0.8em; vertical-align: sub;">subscript</sub>`;
+        document.execCommand('insertHTML', false, subHTML);
+      }
+    }
+    handleInput();
+  };
+
+  // Math expression function
+  const insertMathExpression = () => {
+    const mathHTML = `
+      <div class="math-expression" style="display: inline-block; padding: 4px 8px; margin: 2px; background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 4px; font-family: 'Times New Roman', serif; font-style: italic; color: #495057;">
+        <span contenteditable="true" onkeydown="event.stopPropagation()" style="outline: none; background: transparent;">x² + y² = z²</span>
+      </div>
+    `;
+    insertHTML(mathHTML);
+  };
+
+  // Symbol insertion function
+  const insertSymbol = (symbol) => {
+    const selection = window.getSelection();
+    if (selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      
+      // Ensure we're in the editor
+      const editor = editorRef.current;
+      if (!editor.contains(range.commonAncestorContainer)) {
+        // If selection is outside editor, place at end
+        range.selectNodeContents(editor);
+        range.collapse(false);
+      }
+      
+      // Insert the symbol as a text node
+      const textNode = document.createTextNode(symbol);
+      range.insertNode(textNode);
+      
+      // Move cursor after the inserted symbol
+      range.setStartAfter(textNode);
+      range.setEndAfter(textNode);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      
+      // Focus back to editor
+      editor.focus();
+      
+      // Trigger content change
+      handleInput();
+    }
+    
+    // Close symbol picker
+    setShowSymbolPicker(false);
   };
 
   const insertHTML = (html) => {
@@ -350,6 +506,8 @@ export default function RichTextEditor({ content, onChange, type = 'text' }) {
         <ToolbarButton onClick={() => execCommand('bold')} icon={Bold} title="Bold" isActive={document.queryCommandState('bold')} />
         <ToolbarButton onClick={() => execCommand('italic')} icon={Italic} title="Italic" isActive={document.queryCommandState('italic')} />
         <ToolbarButton onClick={() => execCommand('underline')} icon={Underline} title="Underline" isActive={document.queryCommandState('underline')} />
+        <ToolbarButton onClick={applySuperscript} icon={Superscript} title="Superscript" />
+        <ToolbarButton onClick={applySubscript} icon={Subscript} title="Subscript" />
         <div className="w-px h-6 bg-earth-200 mx-1" />
         <ToolbarButton onClick={() => execCommand('insertUnorderedList')} icon={List} title="Bullet List" />
         <ToolbarButton onClick={() => execCommand('insertOrderedList')} icon={ListOrdered} title="Numbered List" />
@@ -359,6 +517,13 @@ export default function RichTextEditor({ content, onChange, type = 'text' }) {
         <div className="w-px h-6 bg-earth-200 mx-1" />
         <ToolbarButton onClick={insertQuote} icon={Quote} title="Quote" />
         <ToolbarButton onClick={insertCodeBlock} icon={Code} title="Code Block" />
+        <ToolbarButton onClick={insertMathExpression} icon={Calculator} title="Math Expression" />
+        <ToolbarButton 
+          onClick={() => setShowSymbolPicker(!showSymbolPicker)} 
+          icon={Omega} 
+          title="Mathematical Symbols (Ctrl+M)" 
+          isActive={showSymbolPicker}
+        />
         <div className="w-px h-6 bg-earth-200 mx-2" />
         {/* Font family */}
         <select
@@ -438,6 +603,43 @@ export default function RichTextEditor({ content, onChange, type = 'text' }) {
           Clear
         </button>
       </div>
+
+      {/* Symbol Picker */}
+      {showSymbolPicker && (
+        <div className="symbol-picker border border-earth-200 rounded-lg bg-white shadow-lg p-4 mb-2">
+          <div className="flex flex-wrap gap-2 mb-3">
+            {Object.keys(MATH_SYMBOLS).map(category => (
+              <button
+                key={category}
+                onClick={() => setActiveSymbolCategory(category)}
+                className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                  activeSymbolCategory === category
+                    ? 'bg-accent text-white'
+                    : 'bg-earth-100 text-earth-700 hover:bg-earth-200'
+                }`}
+              >
+                {category}
+              </button>
+            ))}
+          </div>
+          <div className="grid grid-cols-8 sm:grid-cols-12 gap-2 max-h-48 overflow-y-auto">
+            {MATH_SYMBOLS[activeSymbolCategory].map(({ symbol, name }) => (
+              <button
+                key={symbol}
+                onClick={() => insertSymbol(symbol)}
+                className="symbol-button p-2 rounded border border-earth-200 hover:bg-earth-50 hover:border-accent transition-colors text-lg font-medium flex items-center justify-center min-h-[40px]"
+                title={name}
+              >
+                {symbol}
+              </button>
+            ))}
+          </div>
+          <div className="mt-3 pt-2 border-t border-earth-200">
+            <p className="text-xs text-earth-600">Click any symbol to insert it at cursor position</p>
+          </div>
+        </div>
+      )}
+
       {/* Main Editor */}
       <div
         ref={editorRef}
@@ -456,8 +658,9 @@ export default function RichTextEditor({ content, onChange, type = 'text' }) {
           color: color,
           wordWrap: 'break-word',
           overflowWrap: 'break-word',
+          whiteSpace: 'pre-wrap'
         }}
-        placeholder="Start typing..."
+        data-placeholder="Start typing..."
       />
     </div>
   );

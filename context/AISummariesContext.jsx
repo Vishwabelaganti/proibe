@@ -14,6 +14,11 @@ export function useAISummaries() {
 export function AISummariesProvider({ children }) {
   // Initialize summaries from localStorage
   const [summaries, setSummaries] = useState(() => {
+    // Check if we're in the browser (not server-side)
+    if (typeof window === 'undefined') {
+      return []; // Return empty array for server-side rendering
+    }
+
     try {
       const saved = localStorage.getItem('proibe-ai-summaries');
       if (saved) {

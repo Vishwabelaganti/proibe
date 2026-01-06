@@ -1,4 +1,30 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';import { auth, db } from '../lib/firebase';import {   signInWithEmailAndPassword,  createUserWithEmailAndPassword,  signInWithPopup,  GoogleAuthProvider,  signOut,  onAuthStateChanged,  updateProfile} from 'firebase/auth';import { doc, setDoc, getDoc, query, collection, where, getDocs } from 'firebase/firestore';const AuthContext = createContext();export function useAuth() {  const context = useContext(AuthContext);  if (!context) {    throw new Error('useAuth must be used within an AuthProvider');  }  return context;}export function AuthProvider({ children }) {  const [currentUser, setCurrentUser] = useState(null);  const [loading, setLoading] = useState(true);  const [userProfile, setUserProfile] = useState(null);
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { auth, db } from '../lib/firebase';
+import { 
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
+  signOut,
+  onAuthStateChanged,
+  updateProfile
+} from 'firebase/auth';
+import { doc, setDoc, getDoc, query, collection, where, getDocs } from 'firebase/firestore';
+
+const AuthContext = createContext();
+
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+}
+
+export function AuthProvider({ children }) {
+  const [currentUser, setCurrentUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [userProfile, setUserProfile] = useState(null);
 
   // Helper function to find user by username or email
   const findUserByUsernameOrEmail = async (identifier) => {
@@ -144,7 +170,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';im
 
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 }

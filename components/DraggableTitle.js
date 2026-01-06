@@ -28,6 +28,20 @@ export default function DraggableTitle({ id, level, children }) {
 
   const Tag = level === 'heading' ? 'h1' : 'h2'
 
+  const handleKeyDown = (e) => {
+    // Stop propagation to prevent drag events while typing
+    e.stopPropagation()
+  }
+
+  const handleMouseDown = (e) => {
+    // Only allow dragging if not editing text
+    const selection = window.getSelection()
+    if (selection && selection.toString().length > 0) {
+      e.preventDefault()
+      return
+    }
+  }
+
   return (
     <div ref={setDropRef}>
       <Tag
@@ -37,13 +51,15 @@ export default function DraggableTitle({ id, level, children }) {
         {...listeners}
         contentEditable
         suppressContentEditableWarning
+        onKeyDown={handleKeyDown}
+        onMouseDown={handleMouseDown}
         onBlur={e =>
           updateSection(id, { content: e.currentTarget.textContent })
         }
         className={
           level === 'heading'
-            ? 'text-2xl font-playfair font-bold cursor-grab focus:outline-none'
-            : 'text-xl font-medium cursor-grab focus:outline-none'
+            ? 'text-2xl font-playfair font-bold cursor-grab focus:outline-none focus:cursor-text'
+            : 'text-xl font-medium cursor-grab focus:outline-none focus:cursor-text'
         }
       >
         {children}
