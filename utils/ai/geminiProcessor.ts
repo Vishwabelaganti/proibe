@@ -1,33 +1,13 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { SummaryOptions, FlashcardOptions, Flashcard } from '../../types/ai';
 
-const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-console.log('Gemini API Key present:', !!apiKey);
-
-if (!apiKey) {
-  throw new Error('NEXT_PUBLIC_GEMINI_API_KEY is not configured');
-}
-
-// Initialize with v1 API version (v1beta doesn't support gemini-1.5-flash/pro)
-const genAI = new GoogleGenerativeAI(apiKey);
-
+// GitHub Pages serves public files. Never embed an account API key here.
+// AI requests stay disabled until an authenticated, owner-only backend is configured.
 export class GeminiProcessor {
-  private model: any;
-
-  constructor() {
-    // Using gemini-2.0-flash as confirmed by API capability listing
-    // Previous models (gemini-pro, gemini-1.5-flash) were returning 404s
-    this.model = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash',
-      generationConfig: {
-        temperature: 0.7,
-        topP: 0.8,
-        maxOutputTokens: 8192,
-      }
-    });
-
-    console.log('Using Gemini model: gemini-2.0-flash');
-  }
+  private model = {
+    async generateContent(_prompt: string): Promise<any> {
+      throw new Error('AI is temporarily unavailable while private server access is configured. Your notes are still available.');
+    }
+  };
 
   async generateSummary(text: string, options: SummaryOptions): Promise<string> {
     console.log('Generating summary for text length:', text.length);
