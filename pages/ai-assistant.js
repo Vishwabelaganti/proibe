@@ -15,7 +15,8 @@ import {
   CheckSquare,
   Square,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Key
 } from 'lucide-react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
@@ -66,6 +67,10 @@ const NotesPrintView = dynamic(() => import('../components/NotesPrintView'), {
   loading: () => <div className="p-4 text-center text-earth-600">Loading notes view...</div>
 });
 
+const ApiKeySettings = dynamic(() => import('../components/ai/ApiKeySettings'), { 
+  ssr: false
+});
+
 export default function AIAssistant() {
   const [mounted, setMounted] = useState(false);
   const { sections } = useNotes();
@@ -76,6 +81,7 @@ export default function AIAssistant() {
   const [showSectionSelector, setShowSectionSelector] = useState(false);
   const [selectAll, setSelectAll] = useState(false);
   const [savedContentTab, setSavedContentTab] = useState('summaries'); // New state for saved content tabs
+  const [showApiKeySettings, setShowApiKeySettings] = useState(false);
   const {
     documents,
     currentDocument,
@@ -99,6 +105,17 @@ export default function AIAssistant() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (status.error && (
+      status.error.includes('API_KEY_MISSING') || 
+      status.error.includes('429') || 
+      status.error.includes('quota') ||
+      status.error.includes('NEXT_PUBLIC_GEMINI_API_KEY')
+    )) {
+      setShowApiKeySettings(true);
+    }
+  }, [status.error]);
 
   // Handle section selection
   const toggleSectionSelection = (sectionId) => {
@@ -403,6 +420,10 @@ export default function AIAssistant() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-earth-50 to-peach-50">
+      <ApiKeySettings 
+        isOpen={showApiKeySettings} 
+        onClose={() => setShowApiKeySettings(false)} 
+      />
       {/* Header */}
       <div className="bg-white border-b border-earth-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -422,14 +443,23 @@ export default function AIAssistant() {
               </div>
             </div>
             
-            {documents.length > 0 && (
+            <div className="flex space-x-2">
               <button
-                onClick={clearDocuments}
-                className="px-4 py-2 text-sm text-earth-600 hover:text-earth-800 border border-earth-200 rounded-md hover:bg-earth-50 transition-colors"
+                onClick={() => setShowApiKeySettings(true)}
+                className="flex items-center px-4 py-2 text-sm text-earth-600 hover:text-earth-800 border border-earth-200 rounded-md hover:bg-earth-50 transition-colors"
               >
-                Clear All
+                <Key size={16} className="mr-2" />
+                API Key
               </button>
-            )}
+              {documents.length > 0 && (
+                <button
+                  onClick={clearDocuments}
+                  className="px-4 py-2 text-sm text-earth-600 hover:text-earth-800 border border-earth-200 rounded-md hover:bg-earth-50 transition-colors"
+                >
+                  Clear All
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -613,12 +643,21 @@ export default function AIAssistant() {
             {currentDocument ? (
               <div className="bg-white rounded-xl shadow-sm border border-earth-200">
                 {/* Document Header */}
-                <div className="p-6 border-b border-earth-200">
-                  <h2 className="text-xl font-semibold text-earth-800">{currentDocument.title}</h2>
-                  <p className="text-sm text-earth-600 mt-1">
-                    {currentDocument.type.charAt(0).toUpperCase() + currentDocument.type.slice(1)} • 
-                    {currentDocument.content.length} characters
-                  </p>
+                <div className="p-6 border-b border-earth-200 flex justify-between items-start">
+                  <div>
+                    <h2 className="text-xl font-semibold text-earth-800">{currentDocument.title}</h2>
+                    <p className="text-sm text-earth-600 mt-1">
+                      {currentDocument.type.charAt(0).toUpperCase() + currentDocument.type.slice(1)} • 
+                      {currentDocument.content.length} characters
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => selectDocument(null)}
+                    className="flex items-center px-3 py-1.5 text-sm text-earth-700 hover:text-earth-900 bg-earth-100 hover:bg-earth-200 rounded-md transition-colors"
+                  >
+                    <ArrowLeft size={16} className="mr-1" />
+                    Back to Dashboard
+                  </button>
                 </div>
 
                 {/* Tabs */}

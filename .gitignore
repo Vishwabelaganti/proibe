@@ -16,8 +16,8 @@ build/
 ############################################################
 #  Next.js
 ############################################################
-.next/                # build + webpack cache
-.vercel/              # Vercel deployment cache
+.next/
+.vercel/
 
 # static export
 out/

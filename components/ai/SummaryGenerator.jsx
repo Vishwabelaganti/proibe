@@ -26,7 +26,9 @@ export default function SummaryGenerator({ document, onGenerateSummary, disabled
       setSummary(generatedSummary);
     } catch (error) {
       console.error('Failed to generate summary:', error);
-      alert('Failed to generate summary: ' + error.message);
+      if (!error.message?.includes('API_KEY_MISSING')) {
+        alert('Failed to generate summary: ' + error.message);
+      }
     } finally {
       setIsGenerating(false);
     }

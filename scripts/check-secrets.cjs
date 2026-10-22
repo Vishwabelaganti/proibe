@@ -7,7 +7,7 @@ let failed = false;
 for (const file of files) {
   if (!fs.existsSync(file)) continue;
   const text = fs.readFileSync(file).toString();
-  const keys = text.match(/AIza[0-9A-Za-z_-]{35}|sk-(?:proj-|svcacct-)?[A-Za-z0-9_-]{25,}|gh[pousr]_[A-Za-z0-9]{30,}|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/g) || [];
+  const keys = text.match(/AIza[0-9A-Za-z_-]{35}|AQ\.[0-9A-Za-z_-]{30,}|sk-(?:proj-|svcacct-)?[A-Za-z0-9_-]{25,}|gh[pousr]_[A-Za-z0-9]{30,}|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/g) || [];
   if (keys.some(key => key !== firebase)) {
     console.error(`Possible private credential in ${file}; value withheld.`);
     failed = true;

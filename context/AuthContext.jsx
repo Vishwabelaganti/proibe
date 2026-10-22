@@ -10,6 +10,7 @@ import {
   updateProfile
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, query, collection, where, getDocs } from 'firebase/firestore';
+import { resolveApiKey } from '../utils/ai/apiKeyManager';
 
 const AuthContext = createContext();
 
@@ -152,6 +153,9 @@ export function AuthProvider({ children }) {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
       await loadUserProfile(user);
+      if (user) {
+        resolveApiKey().catch(() => {});
+      }
       setLoading(false);
     });
 

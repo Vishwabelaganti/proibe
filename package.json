@@ -10,7 +10,7 @@
     "start": "next start",
     "predeploy": "npm run export",
     "deploy": "gh-pages -d docs",
-    "export": "EXPORT=true next build"
+    "export": "NEXT_PUBLIC_GEMINI_API_KEY= EXPORT=true next build"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

@@ -1,13 +1,66 @@
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { SummaryOptions, FlashcardOptions, Flashcard } from '../../types/ai';
+import { resolveApiKey } from './apiKeyManager';
 
-// GitHub Pages serves public files. Never embed an account API key here.
-// AI requests stay disabled until an authenticated, owner-only backend is configured.
 export class GeminiProcessor {
-  private model = {
-    async generateContent(_prompt: string): Promise<any> {
-      throw new Error('AI is temporarily unavailable while private server access is configured. Your notes are still available.');
+  private getModel(apiKey: string, modelName: string = 'gemini-2.5-flash') {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    return genAI.getGenerativeModel({
+      model: modelName,
+      generationConfig: {
+        temperature: 0.7,
+        topP: 0.8,
+        maxOutputTokens: 8192,
+      }
+    });
+  }
+
+  private async generateContentWithFallback(prompt: string) {
+    const apiKey = await resolveApiKey();
+    if (!apiKey) {
+      throw new Error('API_KEY_MISSING: Please click the "API Key" button in the top right to enter your free Google Gemini API key.');
     }
-  };
+
+    const modelsToTry = [
+      'gemini-2.5-flash',
+      'gemini-2.5-flash-lite',
+      'gemini-3.1-flash-lite',
+      'gemini-flash-latest',
+      'gemini-2.5-pro'
+    ];
+
+    const errors: string[] = [];
+    let hasQuotaError = false;
+
+    for (const modelName of modelsToTry) {
+      try {
+        console.log(`Attempting generation with model: ${modelName}`);
+        const model = this.getModel(apiKey, modelName);
+        const result = await model.generateContent(prompt);
+        return await result.response;
+      } catch (error: any) {
+        const errorMessage = error?.message || String(error);
+        console.warn(`Model ${modelName} failed:`, errorMessage);
+        errors.push(`${modelName}: ${errorMessage}`);
+        
+        if (errorMessage.includes('API_KEY_INVALID') || errorMessage.includes('API key not valid')) {
+          throw new Error('API_KEY_MISSING: Your Gemini API key is invalid or expired. Please enter a valid Gemini API key in API Key Settings.');
+        }
+
+        if (errorMessage.includes('429') || errorMessage.toLowerCase().includes('quota')) {
+          hasQuotaError = true;
+        }
+        // Continue to next model in the fallback list
+        continue;
+      }
+    }
+
+    if (hasQuotaError) {
+      throw new Error('All models failed due to Quota/Rate limits (429). Your API key may have 0 quota for the free tier. Please check Google AI Studio billing or try a different API key. Details: ' + errors[0]);
+    }
+
+    throw new Error(`All fallback models failed. Errors:\n` + errors.join('\n'));
+  }
 
   async generateSummary(text: string, options: SummaryOptions): Promise<string> {
     console.log('Generating summary for text length:', text.length);
@@ -17,8 +70,7 @@ export class GeminiProcessor {
     console.log('Summary prompt:', prompt.substring(0, 200) + '...');
 
     try {
-      const result = await this.model.generateContent(prompt);
-      const response = await result.response;
+      const response = await this.generateContentWithFallback(prompt);
       const summary = response.text();
       console.log('Summary generated successfully, length:', summary.length);
       return summary;
@@ -37,8 +89,7 @@ export class GeminiProcessor {
     console.log('Flashcard prompt:', prompt.substring(0, 200) + '...');
 
     try {
-      const result = await this.model.generateContent(prompt);
-      const response = await result.response;
+      const response = await this.generateContentWithFallback(prompt);
       let jsonResponse = response.text();
       console.log('Raw flashcard response:', jsonResponse);
 
@@ -75,8 +126,7 @@ export class GeminiProcessor {
       if (error instanceof SyntaxError) {
         console.log('JSON parsing failed, trying manual extraction...');
         try {
-          const result = await this.model.generateContent(prompt);
-          const response = await result.response;
+          const response = await this.generateContentWithFallback(prompt);
           const textResponse = response.text();
 
           // Try to extract flashcards from text format
@@ -286,8 +336,7 @@ ${text}`;
     Text: ${text.substring(0, 2000)}...`;
 
     try {
-      const result = await this.model.generateContent(analysisPrompt);
-      const response = await result.response;
+      const response = await this.generateContentWithFallback(analysisPrompt);
       const analysis = JSON.parse(response.text());
 
       return {

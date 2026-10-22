@@ -183,7 +183,9 @@ export default function FlashcardCreator({ document, onGenerateFlashcards, disab
       setTestCompleted(false);
     } catch (error) {
       console.error('Failed to generate flashcards:', error);
-      alert('Failed to generate flashcards: ' + error.message);
+      if (!error.message?.includes('API_KEY_MISSING')) {
+        alert('Failed to generate flashcards: ' + error.message);
+      }
     } finally {
       setIsGenerating(false);
     }
