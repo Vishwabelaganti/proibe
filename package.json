@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Proibe is a private, AI-powered productivity and summarization tool designed to enhance learning and focus. This project is currently under development and is not open source.",
   "main": "index.js",
-  "homepage": "https://vishwakaran12.github.io/proibe",
+  "homepage": "https://vishwabelaganti.github.io/proibe",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
